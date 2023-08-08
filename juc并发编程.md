@@ -846,7 +846,7 @@ class SpinLockDemo {
 * 循环开销很大(cpu损耗)
 
 ## ABA问题的解决
-
+* 使用版本号控制
 ```java
         Book book = new Book();
         book.setAge(10);
@@ -860,6 +860,45 @@ class SpinLockDemo {
         System.out.println(b);//true
         System.out.println(reference.getReference());//Book{name = mysql, age = 20}
 ```
+## 原子类详解
+* 基本 new AtomicInteger();
+* 数组 new AtomicIntegerArray(10);
+* 引用
+* 对象属性修改
+* 原子操作增强类
+
+* 常用api
+```java
+    static final int SIZE = 50;
+
+    public static void main(String[] args) throws InterruptedException {
+        //它允许一个或多个线程等待其他线程完成一组操作，然后再继续执行
+        CountDownLatch countDownLatch = new CountDownLatch(SIZE);
+        for (int i = 0; i < SIZE; i++) {
+            new Thread(()->{
+                try {
+                    for (int j = 0; j < 1000; j++) {
+                        myNumber.addPlusPlus();
+                    }
+                } finally {
+                    countDownLatch.countDown();
+                }
+            }).start();
+        }
+        //等待线程都执行完成
+        countDownLatch.await();
+        AtomicInteger atomicInteger = myNumber.atomicInteger;
+        System.out.println(atomicInteger.get());
+    }
+    static class myNumber{
+        static AtomicInteger atomicInteger = new AtomicInteger();
+
+        public static void addPlusPlus(){
+            atomicInteger.incrementAndGet();
+        }
+}
+```
+* 原子引用
 
 
 
