@@ -114,6 +114,7 @@ nacos.naming.distro.syncRetryDelay=5000
 nacos.naming.data.warmup=true
 nacos.naming.expireInstance=true
 ```
+
 * 运行
 ```sh
 docker  run \
