@@ -946,6 +946,7 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     * AtomicLongFieldUpdater
     * AtomicReferenceFieldUpdater
 
+* AtomicIntegerFieldUpdater案例(给int类型字段封装成原子类)
 ```java
         BankAccount bankAccount = new BankAccount();
         CountDownLatch countDownLatch=new CountDownLatch(10);
@@ -970,7 +971,8 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
         //必须使用public和volatile
         public volatile int  money=0;
         //微创手术，就对这个字段原子操作
-        static final AtomicIntegerFieldUpdater<BankAccount> fieldUpdater=AtomicIntegerFieldUpdater.newUpdater(BankAccount.class,"money");
+        static final AtomicIntegerFieldUpdater<BankAccount> fieldUpdater=
+            AtomicIntegerFieldUpdater.newUpdater(BankAccount.class,"money");
         //不加synchronized
         public void transfer(BankAccount bankAccount){
             fieldUpdater.getAndIncrement(bankAccount);
@@ -978,7 +980,64 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     }
 ```
 
+* AtomicReferenceFieldUpdater案例(给任何类型(使用泛型)字段封装成原子类)
 
+```java
+    MyVar myVar = new MyVar();
+    for (int i = 0; i < 10; i++) {
+        new Thread(()->{
+            myVar.init(myVar);
+        }).start();
+    }
+    Thread.sleep(1000);
+
+class MyVar {
+    public volatile Boolean isInit = Boolean.FALSE;
+
+    static final AtomicReferenceFieldUpdater<MyVar, Boolean> referenceFieldUpdater =
+            AtomicReferenceFieldUpdater.newUpdater(MyVar.class, Boolean.class, "isInit");
+
+    public void init(MyVar myVar) {
+        if (referenceFieldUpdater.compareAndSet(myVar, Boolean.FALSE, true)) {
+            System.out.println("init");
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("已经有线程进入了");
+        }
+    }
+}
+```
+## LongAdder(低争用和AtomicLong类似，但是高争用和AtomicLong有高吞吐量但是空间消耗高)
+* api
+```java
+        LongAdder longAdder = new LongAdder();
+        //加14
+        longAdder.add(114);
+        //置空
+        longAdder.reset();
+        //加1
+        longAdder.increment();
+        //拿取值之后清零
+        longAdder.sumThenReset();
+        //拿取值
+        System.out.println(longAdder.sum());
+```
+## LongAccumulator(自定义计算规则)
+```java
+        //自定义运算规则
+        LongAccumulator longAccumulator =
+                new LongAccumulator((x,y)-> x-y,0);
+
+        //计算
+        longAccumulator.accumulate(10);//-10
+        longAccumulator.accumulate(10);//-20
+
+        System.out.println(longAccumulator.get());
+```
 
 
 
