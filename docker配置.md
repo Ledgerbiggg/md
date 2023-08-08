@@ -129,9 +129,17 @@ docker  run \
 -v /data/nacos/init.d/custom.properties:/home/nacos/init.d/custom.properties \
 nacos/nacos-server
 ```
-
-
-mkdir -p /data/frp/ && cat >>  /data/frp/frps.ini << EOF
+# 内网穿透
+## 服务端
+* 配置文件
+```sh
+mkdir -p /data/frp/ && cat >>  /data/frp/frps.ini 
+```
+* 配置
+```sh
+vim /data/frp/frps.ini
+```
+```ini
 [common]
 bind_port = 7000									
 # 启用面板
@@ -152,18 +160,27 @@ log_max_days = 2
 # 认证超时时间
 authentication_timeout = 900
 # 认证token，客户端需要和此对应
-token = ledgerhhh 									
-EOF
-
-
+token = ledgerhhh 	
+```
+* 运行
+```sh
 docker run  -d \
 --restart=always \
 --network host \
 -v /data/frp/frps.ini:/data/frp/frps.ini \
 --name frps snowdreamtech/frps
-
-/data/frp/frpc.ini 
-
+```								
+## 客户端
+* 配置文件
+```sh
+mkdir -p /data/frp/ && cat >>  /data/frp/frpc.ini 
+```
+* 配置
+```sh
+vim /data/frp/frpc.ini
+```
+* 配置
+```ini
 [common]
 server_addr = frps服务器的IP地址
 server_port = frps服务器的端口
@@ -173,20 +190,19 @@ type = 协议
 local_ip = 127.0.0.1				## 可配置本机ip或者配置其他主机上的ip
 local_port = 22						## 可配置本机端口或者配置其他主机上的端口
 remote_port = 8000					## 从本地端口映射到frps服务器上的端口
-
-
-
-
-
+```
+* 运行
+```sh
 docker run  -d \
 --restart=always \
 --network host \
--v /data/frp/frps.ini:/etc/frp/frps.ini \
---name frps snowdreamtech/frps
+-v /data/frp/frpc.ini:/etc/frp/frpc.ini \
+--name frpc snowdreamtech/frpc
+```
 
-docker run --restart=always --network host -d -v /data/frp:/etc/frp --name frps snowdreamtech/frps
 
-docker run --restart=always --network host -d -v /data/frp:/etc/frp --name frpc snowdreamtech/frpc
+
+
 
 
 
