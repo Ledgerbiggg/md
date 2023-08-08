@@ -168,7 +168,7 @@ token = ledgerhhh
 docker run  -d \
 --restart=always \
 --network host \
--v /data/frp/frps.ini:/data/frp/frps.ini \
+-v /data/frp/frps.ini:/etc/frp/frps.ini \
 --name frps snowdreamtech/frps
 ```								
 ## 客户端
