@@ -511,6 +511,362 @@ public class app9 {
 }
 
 ```
+## 中断 interrupt isInterrupted interrupted(static)
+
+* interrupt 中断自己这个线程(处于阻塞状态会抛错，不会将中断状态改为true，join,sleep,wait,其余只是将中断状态设置为true)
+* isInterrupted 返回中断标志值
+* interrupted(static) 返回当前线程中断状态，并进行线程
+
+## 线程控制中断
+
+* volatile关键字
+* 原子型实现控制线程结束
+
+```java
+static volatile boolean isStop = false;
+static AtomicBoolean atomicBoolean = new AtomicBoolean(false);
+    public static void main(String[] args) {
+        new Thread(()->{
+           while (true){
+               if(atomicBoolean.get()){
+                   break;
+               }
+               try {
+                   Thread.sleep(1000);
+               } catch (InterruptedException e) {
+                   e.printStackTrace();
+               }
+               System.out.println("hello volatile");
+           }
+        }).start();
+        new Thread(()->{
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            atomicBoolean.set(true);
+        }).start();
+    }
+```
+
+* api中断
+
+```java
+    public static void main(String[] args) {
+        Thread hello_volatile = new Thread(() -> {
+            while (true) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    System.out.println("退出线程");
+                    break;
+                }
+                System.out.println("hello volatile");
+            }
+        });
+        hello_volatile.start();
+        Thread thread = new Thread(() -> {
+            try {
+                Thread.sleep(3000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            //设置中断标志
+            hello_volatile.interrupt();
+        });
+        thread.start();
+    }
+```
+
+## LockSupport
+
+* park 阻塞
+* unpark(Thread) 唤醒 
+
+```java
+        Thread come_in = new Thread(() -> {
+            for (int i = 0; i < 2; i++) {
+                System.out.println("come in");
+                //会阻塞
+                LockSupport.park();
+                System.out.println("被唤醒");
+            }
+
+        });
+        come_in.start();
+        Thread.sleep(2000);
+        //发通行证*2最多只有一个
+        LockSupport.unpark(come_in);
+        LockSupport.unpark(come_in);
+/*      come in
+        被唤醒
+        come in*/
+    }
+```
+
+## JMM内存模型
+
+* cpu速度和内存数据读写数据不一样(不同的线程，有各自的内存区，对这个内存的读写要返回给主内存，主内存反应给其他线程的内存区，这个时间点其他线程会出现数据读错)
+* 用来解决这种问题的模型
+* 围绕多线程的原子性，可见性，有序性展开的
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308052122605.png)
+
+## 多线程先行发生原则(底层对happens-before，满足以下原则，知道就行)
+
+* 次序规则(先声明后使用)
+* 锁定规则(先抢锁后释放)
+* volatile变量规则(先写变量后读变量)
+* 传递规则(a先于b，b先于c，a先于c)
+* 线程启动原则(先就绪，在运行)
+* 线程中断(先设置中断，再检测中断)
+* 线程终止(先判断线程是否存活，再执行线程操作)
+* 对象终结原则(先初始化，再垃圾回收)
+
+
+## volatile
+
+* 被这个关键字修改的变量有以下特性
+  * 可见性，对一个volatile的读，总是能看到(任意线程)对这个变脸最后的写入
+  * 有序性，对volatile修饰的变量的读写操作前后加上各种特定的内存屏障来禁止指令重排序来保障有序性
+  * 不保证原子性，对于任意单个volatile变量的读写具有原子性，但类似于volatile++这种复合操作不具有原子性
+
+1. 当写一个volatile变量时，JMM会把该线程对应的本地内存中的共享变量值立即刷新回主内存中。
+2. 当读一个volatile变量时，JMM会把该线程对应的本地内存设置为无效，直接从主内存中读取共享变量
+3. 所以volatile的写内存语义是直接刷新到主内存中，读的内存语义是直接从主内存中读取
+
+
+## volatile变量存在内存屏障
+
+* 作用
+  * 写操作的可见性： 当一个线程写入一个 volatile 变量时，编译器和处理器会确保该写操作在之后的读操作之前被执行。这意味着其他线程在读取该 volatile 变量时，将会看到最新的写入值，而不是缓存中的旧值。
+  * 读操作的有序性： 当一个线程读取一个 volatile 变量时，编译器和处理器会确保该读操作不会被重排到其他操作之前。这确保了在读取 volatile 变量时，它的值是最新的，而不是之前操作的结果。
+* 功能：内存屏障对volatile变量的写在屏障前执行，读在后执行，确保先写后读,读取数据可以读取最新的消息
+
+## 读写屏障插入策略
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308061014515.png)
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308061016161.png)
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308061017680.png)
+
+
+## 案例
+
+* 编译器和处理器在重排序时，会遵守数据依赖性，不会改变存在依赖关系的两个操作的执行,但不同处理器和不同线程之间的数据性不会被编译器和处理器考虑，其只会作用于单处理器和单线程环境，下面三种情况，只要重排序两个操作的执行顺序，程序的执行结果就会被改变
+
+| 名称   | 代码示例 | 说明                         |
+| ------ | -------- | ---------------------------- |
+| 写后读 | a=1;b=a; | 写一个变量之后，再读这个位置 |
+| 写后写 | a=1;a-2; | 写一个变量之后，再写这个变量 |
+| 读后写 | a=b;b=1; | 读一个变量之后，再写这个变量 |
+
+## 最佳实践
+
+* 单一赋值，but包含复合运算赋值不可以
+
+```java
+volatile int a =10;
+//修改值
+a=11；
+//复合修改不行
+a++;
+```
+
+* 状态标志，判断业务是否结束
+
+```java
+volatile boolean flag =false
+```
+
+* 开销较低的读，写锁策略
+
+```java
+    static class num{
+        private volatile int num=0;
+
+        public int getNum() {
+            return num;
+        }
+
+        public synchronized  void setNum() {
+            this.num++;
+        }
+    }
+```
+
+* DCL双端锁的发布(volatile保证先new出来实例，再指向，禁止重排序)
+
+```java
+class singleTom {
+    private volatile static singleTom instance;
+
+    private singleTom() {
+    }
+
+    public static singleTom getInstance() {
+        if (instance == null) {
+            synchronized (singleTom.class) {
+                if (instance == null) {
+                    instance = new singleTom();
+                }
+            }
+        }
+        return instance;
+    }
+}
+```
+
+## 小结
+
+* volatile写之前的操作，都禁止重排序到 volatile 之后
+* volatile读之后的操作，都禁止重排序到 volatile 之前
+* volatile写之后 volatile 读，禁止重排序
+
+## 原子类
+
+* getAndIncrement在自增失败会重试
+
+```java
+  public static void main(String[] args) throws InterruptedException {
+        Num num = new Num();
+
+
+        for (int i = 0; i < 10; i++) {
+            new Thread(()->{
+                for (int j = 0; j < 1000; j++) {
+                    num.setNum();
+                    num.setNum0();
+                }
+            }).start();
+        }
+        Thread.sleep(1000);
+        System.out.println(num.getNum());
+        System.out.println(num.getNum0());
+    }
+
+class Num {
+    private final AtomicInteger atomicInteger = new AtomicInteger(0);
+    private volatile int num = 0;
+
+    public int getNum0() {
+        return num;
+    }
+    public int getNum() {
+        return atomicInteger.get();
+    }
+    public void setNum0() {
+        num++;
+    }
+    public void setNum() {
+        atomicInteger.getAndIncrement();
+    }
+}
+//打印
+//10000
+//9465
+```
+
+## 原子引用
+
+```java
+    public static void main(String[] args) {
+        AtomicReference<User> ref = new AtomicReference<>();
+        User ledger = new User("ledger", 20);
+        ref.set(ledger);
+        //true
+        System.out.println(ref.compareAndSet(ledger, new User("ledger2", 20)));
+        //false
+        System.out.println(ref.compareAndSet(ledger, new User("ledger2", 20)));
+    }
+class User{
+    String name;
+    int age;
+    public User(String name, int age) {
+        this.name = name;
+        this.age = age;
+    }
+    public User() {
+    }
+}
+```
+
+* 使用原子引用实现乐观自旋锁
+
+```java
+    public static void main(String[] args) {
+        SpinLockDemo spinLockDemo = new SpinLockDemo();
+        new Thread(() -> {
+            try {
+                spinLockDemo.lock();
+                Thread.sleep(1000);
+                spinLockDemo.unlock();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "a").start();
+
+        new Thread(() -> {
+            try {
+                spinLockDemo.lock();
+                Thread.sleep(1000);
+                spinLockDemo.unlock();
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }, "b").start();
+    }
+
+class SpinLockDemo {
+    //自旋锁
+    private AtomicReference<Thread> atomicReference = new AtomicReference<>();
+
+    public void lock() throws InterruptedException {
+        Thread thread = Thread.currentThread();
+        System.out.println(thread.getName()+"进入线程");
+        while (!atomicReference.compareAndSet(null, thread)) {
+            System.out.println("阻塞");
+            Thread.sleep(500);
+        }
+    }
+    public void unlock() {
+        Thread thread = Thread.currentThread();
+        System.out.println(thread.getName()+"退出线程");
+        atomicReference.compareAndSet(thread, null);
+    }
+}
+
+```
+
+## CAS存在的问题
+
+* ABA问题，a线程将原子类改成B，b线程拿到觉得是B，拿走之后，a将B又改为A;
+* 循环开销很大(cpu损耗)
+
+## ABA问题的解决
+
+```java
+        Book book = new Book();
+        book.setAge(10);
+        book.setName("ledger");
+        AtomicStampedReference<Book> reference = new AtomicStampedReference<>(book, 1);
+
+        System.out.println(reference.getReference());//Book{name = ledger, age = 10}
+        System.out.println(reference.getStamp());//1
+        Book mysql = new Book("mysql", 20);
+        boolean b = reference.compareAndSet(book, mysql, 1, reference.getStamp() + 1);
+        System.out.println(b);//true
+        System.out.println(reference.getReference());//Book{name = mysql, age = 20}
+```
+
+
+
+
+
+
+
 
 
 
