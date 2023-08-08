@@ -1,4 +1,190 @@
+## docker配置常用镜像
+
+## Elasticsearch & ik分词器  &  Kibana
+
+* **Elasticsearch:**
+  Elasticsearch 是一个分布式的搜索和分析引擎，用于存储、搜索和分析大量数据。
+
+* **IK 分词器:**
+  IK 分词器（IK Analyzer）是 Elasticsearch 中用于中文分词的一种分析器。
+
+* **Kibana:**
+  Kibana 是 Elasticsearch 的可视化工具
+
+### Elasticsearch
+
+1. 安装镜像
+
+```sh
+docker pull elasticsearch:7.7.1
+```
+
+2. 创建挂载目录
+
+```sh
+# 配置文件
+mkdir -p /data/elasticsearch/conf
+# 数据文件
+mkdir -p /data/elasticsearch/data
+# 插件
+mkdir -p /data/elasticsearch/plugins
+# 将http.host: 0.0.0.0写入elasticsearch.yml，允许通过网络中的任何计算机访问 Elasticsearch 的 HTTP 接口
+echo "http.host: 0.0.0.0" >> /data/elasticsearch/conf/elasticsearch.yml
+```
+
+3. 文件夹赋权
+
+```sh
+# -R表示递归赋权
+chmod -R 777 /data/elasticsearch/
+```
+
+4. 运行
+
+* 9200 端口是 Elasticsearch 的 HTTP REST API 默认监听端口；9300 端口是 Elasticsearch 的节点间通信端口
+* 命令行参数，单机版运行
+* 最小堆内存和最大堆内存
+
+```sh
+docker run --name elasticsearch --restart=always \
+-p 9200:9200 -p 9300:9300 \
+-e "discovery.type=single-node" \
+-e ES_JAVA_OPTS="-Xms256m -Xmx256m" \
+-v /data/elasticsearch/conf/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml \
+-v /data/elasticsearch/data:/usr/share/elasticsearch/data \
+-v /data/elasticsearch/plugins:/usr/share/elasticsearch/plugins \
+-d elasticsearch:7.7.1
+```
+
+### ik分词器
+
+* [github地址]: https://github.com/medcl/elasticsearch-analysis-ik/releases?q=7.&amp;expanded=true
+
+* tip：版本一定要和es的一致
+
+* 自定义分词器
+
+```sh
+ vi /data/elasticsearch/plugins/ik/config/IKAnalyzer.cfg.xml
+```
+
+```sh
+<properties>
+        <comment>IK Analyzer 扩展配置</comment>
+        <!--用户可以在这里配置自己的扩展字典 -->
+        <entry key="ext_dict"></entry>
+         <!--用户可以在这里配置自己的扩展停止词字典-->
+        <entry key="ext_stopwords"></entry>
+        <!--
+        	用户可以在这里配置远程扩展字典 
+        	http://192.168.56.10/es/fenci.txt 这里为nginx对应的路径
+        -->
+        <entry key="remote_ext_dict">http://192.168.56.10/es/fenci.txt</entry>
+        <!--用户可以在这里配置远程扩展停止词字典-->
+        <!-- <entry key="remote_ext_stopwords">words_location</entry> -->
+</properties>
+```
+
+### Kibana
+
+1. 安装镜像
+
+```sh’
+docker pull kibana:7.4.2
+```
+
+2. 运行
+
+```sh
+docker run --name kibana -e ELASTICSEARCH_HOSTS=http://10.0.4.17:9200 -p 5601:5601 -d kibana:7.4.2
+```
+
+## mysql
+
+* 拉取
+
+```sh
+docker pull mysql
+
+```
+
+* 运行
+
+```sh
+docker run -d --restart=always --name mysql -p 3306:3306 -e TZ=Asia/Shanghai -e MYSQL_ROOT_PASSWORD=123456 mysql --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+
+```
+
+* 创建文件夹
+
+```sh
+mkdir -p /root/data/mysql/var/lib/
+mkdir -p /root/data/mysql/etc/
+mkdir -p /root/data/mysql/var/log/
+
+```
+
+* 复制卷（一个一个来）
+
+```sh
+docker cp mysql:/var/lib/mysql /root/data/mysql/var/lib/
+docker cp mysql:/etc/mysql /root/data/mysql/etc/
+docker cp mysql:/var/log  /root/data/mysql/var/log/
+
+```
+
+* 关闭容器
+
+```sh
+docker rm -f mysql
+
+```
+
+* 运行容器
+
+```sh
+docker run  -p 3306:3306 \
+-e MYSQL_ROOT_PASSWORD=123456 \
+-e TZ=Asia/Shanghai \
+-v /root/data/mysql/data:/var/lib/mysql:rw  \
+-v /root/data/mysql/log:/var/log/mysql:rw  \
+-v /root/data/mysql/conf/my.cnf:/etc/mysql/my.cnf:rw  \
+--name mysql \
+--restart=always \
+-d mysql
+
+```
+
+* 进入
+
+```sh
+docker exec -it mysql bash
+
+```
+
+* 操作
+
+```SH
+mysql -u root -p123456
+
+```
+
+* 改密码
+
+```sh
+alter user 'root'@'%' identified with mysql_native_password by 'root'
+flush privileges
+
+```
+
+* exit
+
+```sh
+exit
+```
+
 # redis
+
 * 创建卷
 ```sh
 mkdir -p /data/redis/conf/
@@ -170,7 +356,7 @@ docker run  -d \
 --network host \
 -v /data/frp/frps.ini:/data/frp/frps.ini \
 --name frps snowdreamtech/frps
-```								
+```
 ## 客户端
 * 配置文件
 ```sh
