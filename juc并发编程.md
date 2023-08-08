@@ -899,6 +899,84 @@ class SpinLockDemo {
 }
 ```
 * 原子引用
+    * AtomicMarkableReference(可以有一个标记，来用于标记有没有修改过)
+```java
+static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMarkableReference<>(100, true);
+    public static void main(String[] args) {
+         new Thread(()->{
+             boolean marked = atomicMarkableReference.isMarked();
+             try {
+                 Thread.sleep(100);
+             } catch (InterruptedException e) {
+                 e.printStackTrace();
+             }
+             System.out.println("marked"+marked);
+             boolean b = atomicMarkableReference.compareAndSet(100, 1000, marked, !marked);
+             System.out.println("b1"+b);
+         }).start();
+        new Thread(()->{
+            boolean marked = atomicMarkableReference.isMarked();
+            try {
+                Thread.sleep(600);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            System.out.println("marked22"+marked);
+            boolean b = atomicMarkableReference.compareAndSet(100, 2000, marked, !marked);
+            System.out.println("b2"+b);
+        }).start();
+
+        try {
+            Thread.sleep(1000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        System.out.println(atomicMarkableReference.getReference());
+        System.out.println(atomicMarkableReference.isMarked());
+    }
+    // markedtrue
+    // b1true
+    // marked22true
+    // b2false
+    // 1000
+    // false
+```
+* 原子字段更新(使用反射对指定类的指定volatile字段进行更新)
+    * AtomicIntegerFieldUpdater
+    * AtomicLongFieldUpdater
+    * AtomicReferenceFieldUpdater
+
+```java
+        BankAccount bankAccount = new BankAccount();
+        CountDownLatch countDownLatch=new CountDownLatch(10);
+        for (int i = 0; i < countDownLatch.getCount(); i++) {
+            new Thread(()->{
+                try {
+                    for (int j = 0; j < 1000; j++) {
+                        bankAccount.transfer(bankAccount);
+                    }
+                } finally {
+                    countDownLatch.countDown();
+                }
+            }).start();
+        }
+        countDownLatch.await();
+        System.out.println(bankAccount.money);
+
+    static class BankAccount{
+        String bankName="CCB";
+        String bankNo="45454156154145";
+        String owner="z3";
+        //必须使用public和volatile
+        public volatile int  money=0;
+        //微创手术，就对这个字段原子操作
+        static final AtomicIntegerFieldUpdater<BankAccount> fieldUpdater=AtomicIntegerFieldUpdater.newUpdater(BankAccount.class,"money");
+        //不加synchronized
+        public void transfer(BankAccount bankAccount){
+            fieldUpdater.getAndIncrement(bankAccount);
+        }
+    }
+```
 
 
 
