@@ -186,6 +186,7 @@ vim /data/frp/frpc.ini
 server_addr = frps服务器的IP地址
 server_port = frps服务器的端口
 token = frps服务器的token
+
 [ssh]
 type = 协议
 local_ip = 127.0.0.1				## 可配置本机ip或者配置其他主机上的ip
