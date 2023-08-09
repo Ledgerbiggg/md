@@ -977,7 +977,23 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
         }
     }
 ```
-## 
+## 性能更好的LongAdder和LongAccumulator,类似AtomicLong
+```java
+    //初始是0,api方法和AtomicLong类似
+    LongAdder longAdder=new LongAdder();
+    LongAccumulator longAccumulator=new LongAccumulator((x,y)->x+y,10);
+    //当做y和x来做计算
+    longAccumulator.accumulate(10);
+    //获取并重置
+    System.out.println(longAccumulator.getThenReset());
+    //重置
+    longAccumulator.reset();
+    //获取
+    System.out.println(longAccumulator.get());
+```
+
+
+
 
 
 
