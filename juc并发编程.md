@@ -993,6 +993,7 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     System.out.println(longAccumulator.get());
 ```
 
+docker run -d --privileged=true -p 8088:80 --name nextcloud --restart=always -v /ledger/www/nextcloud/html:/var/www/html -v /ledger/www/nextcloud/apps:/var/www/html/custom_apps -v /ledger/www/nextcloud/config:/var/www/html/config -v /ledger/www/nextcloud/data:/var/www/html/data -v /ledger/www/nextcloud/theme:/var/www/html/themes --link mysql:mysql  nextcloud
 
 
 
