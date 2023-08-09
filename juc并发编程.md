@@ -979,6 +979,40 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
         }
     }
 ```
+## 性能更好的LongAdder和LongAccumulator,类似AtomicLong
+* 减少了乐观锁的重试次数
+```java
+    //初始是0,api方法和AtomicLong类似
+    LongAdder longAdder=new LongAdder();
+    LongAccumulator longAccumulator=new LongAccumulator((x,y)->x+y,10);
+    //当做y和x来做计算
+    longAccumulator.accumulate(10);
+    //获取并重置
+    System.out.println(longAccumulator.getThenReset());
+    //重置
+    longAccumulator.reset();
+    //获取
+    System.out.println(longAccumulator.get());
+```
+
+docker run -d --privileged=true -p 8088:80 --name nextcloud --restart=always -v /ledger/www/nextcloud/html:/var/www/html -v /ledger/www/nextcloud/apps:/var/www/html/custom_apps -v /ledger/www/nextcloud/config:/var/www/html/config -v /ledger/www/nextcloud/data:/var/www/html/data -v /ledger/www/nextcloud/theme:/var/www/html/themes --link mysql:mysql  nextcloud
+
+
+docker run -idt --name=nextcloud --link mysql:db -p 8080:80 --restart=always nextcloud
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 * AtomicReferenceFieldUpdater案例(给任何类型(使用泛型)字段封装成原子类)
 
