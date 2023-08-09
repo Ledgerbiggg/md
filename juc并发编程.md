@@ -978,6 +978,7 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     }
 ```
 ## 性能更好的LongAdder和LongAccumulator,类似AtomicLong
+* 减少了乐观锁的重试次数
 ```java
     //初始是0,api方法和AtomicLong类似
     LongAdder longAdder=new LongAdder();
