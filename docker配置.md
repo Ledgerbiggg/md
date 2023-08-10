@@ -96,7 +96,7 @@ docker pull kibana:7.4.2
 2. 运行
 
 ```sh
-docker run --name kibana -e ELASTICSEARCH_HOSTS=http://10.0.4.17:9200 -p 5601:5601 -d kibana:7.4.2
+docker run --name kibana -e ELASTICSEARCH_HOSTS=http://106.54.9.19:9200 -p 5601:5601 -d kibana:7.4.2
 ```
 
 ## mysql
