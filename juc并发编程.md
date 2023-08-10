@@ -1238,6 +1238,17 @@ final void longAccumulate(long x, LongBinaryOperator fn,
 
 
 ## ThreadLocal
+
+* 初始化
+```java
+ThreadLocal<Integer> integerThreadLocal = new ThreadLocal<>();//null
+ThreadLocal<Integer> integerThreadLocal1 = ThreadLocal.withInitial(() -> 1);
+```
+
+
+
+
+## 源码分析看这边
 [具体看这个文章](https://ledgerhhh.art/index.php/archives/20/)
 
 
