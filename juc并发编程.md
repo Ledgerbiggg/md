@@ -1244,6 +1244,8 @@ final void longAccumulate(long x, LongBinaryOperator fn,
 ThreadLocal<Integer> integerThreadLocal = new ThreadLocal<>();//null
 ThreadLocal<Integer> integerThreadLocal1 = ThreadLocal.withInitial(() -> 1);
 ```
+* tip
+    * 如果线程池一直不关，存在线程复用，但是线程一直有threadlocal，那么就会内存泄露
 
 
 
