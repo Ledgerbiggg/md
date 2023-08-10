@@ -992,12 +992,12 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     //获取
     System.out.println(longAccumulator.get());
 ```
+## LongAdder为快这么多
+* 源码分析
+```java
 
-docker run -d --privileged=true -p 8088:80 --name nextcloud --restart=always -v /ledger/www/nextcloud/html:/var/www/html -v /ledger/www/nextcloud/apps:/var/www/html/custom_apps -v /ledger/www/nextcloud/config:/var/www/html/config -v /ledger/www/nextcloud/data:/var/www/html/data -v /ledger/www/nextcloud/theme:/var/www/html/themes --link mysql:mysql  nextcloud
 
-
-docker run -idt --name=nextcloud --link mysql:db -p 8080:80 --restart=always nextcloud
-
+```
 
 
 
