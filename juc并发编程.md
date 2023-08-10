@@ -946,6 +946,9 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     * AtomicLongFieldUpdater
     * AtomicReferenceFieldUpdater
 
+
+
+
 * AtomicIntegerFieldUpdater案例(给int类型字段封装成原子类)
 ```java
         BankAccount bankAccount = new BankAccount();
@@ -997,6 +1000,86 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
 ## LongAdder为啥快这么多
 * 源码分析
     * add 方法
+
+* AtomicReferenceFieldUpdater案例(给任何类型(使用泛型)字段封装成原子类)
+
+```java
+    MyVar myVar = new MyVar();
+    for (int i = 0; i < 10; i++) {
+        new Thread(()->{
+            myVar.init(myVar);
+        }).start();
+    }
+    Thread.sleep(1000);
+
+class MyVar {
+    public volatile Boolean isInit = Boolean.FALSE;
+
+    static final AtomicReferenceFieldUpdater<MyVar, Boolean> referenceFieldUpdater =
+            AtomicReferenceFieldUpdater.newUpdater(MyVar.class, Boolean.class, "isInit");
+
+    public void init(MyVar myVar) {
+        if (referenceFieldUpdater.compareAndSet(myVar, Boolean.FALSE, true)) {
+            System.out.println("init");
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("已经有线程进入了");
+        }
+    }
+}
+```
+## LongAdder(低争用和AtomicLong类似，但是高争用和AtomicLong有高吞吐量但是空间消耗高)
+* api
+```java
+        LongAdder longAdder = new LongAdder();
+        //加14
+        longAdder.add(114);
+        //置空
+        longAdder.reset();
+        //加1
+        longAdder.increment();
+        //拿取值之后清零
+        longAdder.sumThenReset();
+        //拿取值
+        System.out.println(longAdder.sum());
+```
+## LongAccumulator(自定义计算规则)
+```java
+        //自定义运算规则
+        LongAccumulator longAccumulator =
+                new LongAccumulator((x,y)-> x-y,0);
+
+        //计算
+        longAccumulator.accumulate(10);//-10
+        longAccumulator.accumulate(10);//-20
+        System.out.println(longAccumulator.get());
+```
+## LongAdder源码分析
+* Striped64是LongAdder父类
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092005502.png)
+
+* cell是Striped64中的一个静态内部类
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092006680.png)
+
+### 方法和属性
+
+* ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092009349.png)
+
+## 解析
+
+* 内部有一个base变量，一个Cell[]数组,所有求和
+    * base变量：低并发，直接累加到该变量上
+    * Cell[]数组：高并发，累加到各个进程自己的槽Cell[i]中
+
+## 分析源码
+* add
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092034420.png)
 
 * cell是存放增加的数值,cells数组用来存放cell的
 ```java
@@ -1154,99 +1237,8 @@ final void longAccumulate(long x, LongBinaryOperator fn,
 
 
 
-
-
-
-
-
-
-
-
-
-
-* AtomicReferenceFieldUpdater案例(给任何类型(使用泛型)字段封装成原子类)
-
-```java
-    MyVar myVar = new MyVar();
-    for (int i = 0; i < 10; i++) {
-        new Thread(()->{
-            myVar.init(myVar);
-        }).start();
-    }
-    Thread.sleep(1000);
-
-class MyVar {
-    public volatile Boolean isInit = Boolean.FALSE;
-
-    static final AtomicReferenceFieldUpdater<MyVar, Boolean> referenceFieldUpdater =
-            AtomicReferenceFieldUpdater.newUpdater(MyVar.class, Boolean.class, "isInit");
-
-    public void init(MyVar myVar) {
-        if (referenceFieldUpdater.compareAndSet(myVar, Boolean.FALSE, true)) {
-            System.out.println("init");
-            try {
-                Thread.sleep(2000);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-        } else {
-            System.out.println("已经有线程进入了");
-        }
-    }
-}
-```
-## LongAdder(低争用和AtomicLong类似，但是高争用和AtomicLong有高吞吐量但是空间消耗高)
-* api
-```java
-        LongAdder longAdder = new LongAdder();
-        //加14
-        longAdder.add(114);
-        //置空
-        longAdder.reset();
-        //加1
-        longAdder.increment();
-        //拿取值之后清零
-        longAdder.sumThenReset();
-        //拿取值
-        System.out.println(longAdder.sum());
-```
-## LongAccumulator(自定义计算规则)
-```java
-        //自定义运算规则
-        LongAccumulator longAccumulator =
-                new LongAccumulator((x,y)-> x-y,0);
-
-        //计算
-        longAccumulator.accumulate(10);//-10
-        longAccumulator.accumulate(10);//-20
-        System.out.println(longAccumulator.get());
-```
-## LongAdder源码分析
-* Striped64是LongAdder父类
-
-![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092005502.png)
-
-* cell是Striped64中的一个静态内部类
-
-![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092006680.png)
-
-### 方法和属性
-
-* ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092009349.png)
-
-## 解析
-
-* 内部有一个base变量，一个Cell[]数组,所有求和
-    * base变量：低并发，直接累加到该变量上
-    * Cell[]数组：高并发，累加到各个进程自己的槽Cell[i]中
-
-## TODO自己分析源码
-* add
-![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092034420.png)
-* 
-
 ## ThreadLocal
-
+[具体看这个文章](https://ledgerhhh.art/index.php/archives/20/)
 
 
 
