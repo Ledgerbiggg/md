@@ -1069,9 +1069,41 @@ class MyVar {
         //计算
         longAccumulator.accumulate(10);//-10
         longAccumulator.accumulate(10);//-20
-
         System.out.println(longAccumulator.get());
 ```
+## LongAdder源码分析
+* Striped64是LongAdder父类
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092005502.png)
+
+* cell是Striped64中的一个静态内部类
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092006680.png)
+
+### 方法和属性
+
+* ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092009349.png)
+
+## 解析
+
+* 内部有一个base变量，一个Cell[]数组,所有求和
+    * base变量：低并发，直接累加到该变量上
+    * Cell[]数组：高并发，累加到各个进程自己的槽Cell[i]中
+
+## TODO自己分析源码
+* add
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092034420.png)
+* 
+* 
+
+
+
+
+
+
+
+
+
 
 
 
