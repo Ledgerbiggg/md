@@ -994,11 +994,34 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
 ```
 ## LongAdder为快这么多
 * 源码分析
-```java
+    * add 方法
 
+* 第一次进入add
+    * cell是存放增加的数值,cells数组用来存放cell的
+```java
+    public void add(long x) {
+        Cell[] cs; long b, v; int m; Cell c;
+        //新开窗口为null ->  
+        if ((cs = cells) != null || !casBase(b = base, b + x)) {
+            
+            boolean uncontended = true;
+
+            if (cs == null || (m = cs.length - 1) < 0 ||
+
+                (c = cs[getProbe() & m]) == null ||
+
+                !(uncontended = c.cas(v = c.value, v + x)))
+
+                longAccumulate(x, null, uncontended);
+        }
+    }
+```
+```java
+    final boolean casBase(long cmp, long val) {
+        return BASE.compareAndSet(this, cmp, val);
+    }
 
 ```
-
 
 
 
