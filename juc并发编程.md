@@ -1246,12 +1246,10 @@ ThreadLocal<Integer> integerThreadLocal1 = ThreadLocal.withInitial(() -> 1);
 * tip
     * 如果线程池一直不关，存在线程复用，但是线程一直有threadlocal，那么就会内存泄露
 
-
-
-
 ## 源码分析看这边
 [具体看这个文章](https://ledgerhhh.art/index.php/archives/20/)
 
+* 内存泄露
 
 
 
