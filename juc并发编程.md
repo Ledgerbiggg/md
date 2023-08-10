@@ -1084,7 +1084,7 @@ final void longAccumulate(long x, LongBinaryOperator fn,
                 // cells的长度大于等于cpu核数或者cells在走判断语句的过程中被其他线程修改了,就直接不扩容了,collide标记为false,走下一次循环
                 else if (n >= NCPU || cells != cs)
                     collide = false;            // At max size or stale
-                //如果没有标记过
+                //如果没有标记过(和上面那个打配合的,我愿称之为反复横跳)
                 else if (!collide)
                     collide = true;
                 //扩容操作 cellsBusy等于0 ,获取锁 casCellsBusy将cellsBusy修改为1,cellsBusy被 volatile 修饰,具有可见性
@@ -1148,7 +1148,7 @@ final void longAccumulate(long x, LongBinaryOperator fn,
     * 在base忙不过来的时候,会选择使用cells[]来帮助统计,cell里面存放的值就就是要统计的值
     * 在add方法中,总是优先走的使用base来统计数据,如果没成功,就使用longAccumulate
     * longAccumulate方法中,有三个主要的if循环分支,分别是扩容cells,初始化cells,存base,cells存在就不回走后两个了
-    * 扩容cells中有6个if分支,主要的就是创建cell,赋值,增加cell的值
+    * 扩容cells中有6个if分支,主要的就是创建cell,赋值,增加cell的值,比较cpu个数和cells长度,一样或者超过了就不扩容,扩容
 
 
 
