@@ -992,36 +992,163 @@ static AtomicMarkableReference<Integer> atomicMarkableReference = new AtomicMark
     //获取
     System.out.println(longAccumulator.get());
 ```
-## LongAdder为快这么多
+## LongAdder为啥快这么多
 * 源码分析
     * add 方法
 
-* 第一次进入add
-    * cell是存放增加的数值,cells数组用来存放cell的
+* cell是存放增加的数值,cells数组用来存放cell的
 ```java
     public void add(long x) {
         Cell[] cs; long b, v; int m; Cell c;
-        //新开窗口为null ->  
+        //1. (第一次进入add)新开窗口为null ->  casBase方法直接调用compareAndSet变更原子类,操作成功返回true
+        //2. (多次进入)新开窗口为null -> casBase方法直接调用compareAndSet变更原子类,操作失败返回false
+            //2.1 uncontended
         if ((cs = cells) != null || !casBase(b = base, b + x)) {
-            
+            //2.1 无竞争的
             boolean uncontended = true;
-
+            //2.1 cells是空true
             if (cs == null || (m = cs.length - 1) < 0 ||
-
+                //getProbe这个是获取线程的hash值的
                 (c = cs[getProbe() & m]) == null ||
-
+                //uncontended这个是相对于base而言的(没有竞争的)
                 !(uncontended = c.cas(v = c.value, v + x)))
-
+                //初始化cells
                 longAccumulate(x, null, uncontended);
         }
     }
 ```
+
+* casBase方法来操作base值
 ```java
+    //用来操作base数值
     final boolean casBase(long cmp, long val) {
         return BASE.compareAndSet(this, cmp, val);
     }
-
 ```
+* Striped64是LongAdder的父类,里面的longAccumulate方法实现计算
+```java
+//初始化cells 扩容cells 在扩容过程中执行的操作(交给base处理)
+final void longAccumulate(long x, LongBinaryOperator fn,
+                              boolean wasUncontended) {
+        //当前线程的hash值
+        int h;
+        //当前线程的hash值是0就强制初始化
+        if ((h = getProbe()) == 0) {
+            ThreadLocalRandom.current(); // force initialization
+            h = getProbe();
+            wasUncontended = true;
+        }
+        //最后一个插槽为空就位true
+        boolean collide = false;                // True if last slot nonempty
+        //无限循环
+        done: for (;;) {
+            //cs当前的cells c计算出来的cells上位置的cell n为cells的长度  v为x值
+            Cell[] cs; Cell c; int n; long v;
+//如果cells已经有了  长度大于0 就在cells处理逻辑(执行任务或者扩容)
+            if ((cs = cells) != null && (n = cs.length) > 0) {
+                //数组长度和线程hash做与运算 找出这个位置的cell 值为空(没有被赋值过)
+                if ((c = cs[(n - 1) & h]) == null) {
+                    //没有在初始化线程
+                    if (cellsBusy == 0) {       // Try to attach new Cell
+                        Cell r = new Cell(x);   // Optimistically create
+                        //双重校验加抢锁
+                        if (cellsBusy == 0 && casCellsBusy()) {
+                            try {               // Recheck under lock
+                                Cell[] rs; int m, j;
+                                //双重校验 不为空校验和长度校验 长度和线程hash算出来的结果位子为空 
+                                if ((rs = cells) != null &&
+                                    (m = rs.length) > 0 &&
+                                    rs[j = (m - 1) & h] == null) {
+                                    //将新建的,里面存放x的cell存cells
+                                    rs[j] = r;
+                                    break done;
+                                }
+                            } finally {
+                                //释放锁
+                                cellsBusy = 0;
+                            }
+                            continue;           // Slot is now non-empty
+                        }
+                    }
+                    collide = false;
+                }
+                //要存入的cell不为null或者是锁没抢到 
+                else if (!wasUncontended)       // CAS already known to fail
+                    //竞争不激烈(根据add里面的一次传入c.cas(v = c.value, v + x)修改的结果决定,传进来的都是false)
+                    //无竞争的改为true 然后下一次循环
+                    wasUncontended = true;      // Continue after rehash
+                // 数组在,位置不为null,竞争激烈  c原子存入x值
+                else if (c.cas(v = c.value,
+                               (fn == null) ? v + x : fn.applyAsLong(v, x)))
+                    break;
+                // cells的长度大于等于cpu核数或者cells在走判断语句的过程中被其他线程修改了,就直接不扩容了,collide标记为false,走下一次循环
+                else if (n >= NCPU || cells != cs)
+                    collide = false;            // At max size or stale
+                //如果没有标记过
+                else if (!collide)
+                    collide = true;
+                //扩容操作 cellsBusy等于0 ,获取锁 casCellsBusy将cellsBusy修改为1,cellsBusy被 volatile 修饰,具有可见性
+                else if (cellsBusy == 0 && casCellsBusy()) {
+                    try {
+                        //双重校验
+                        if (cells == cs)        // Expand table unless stale
+                            //拷贝数组并扩容一倍
+                            cells = Arrays.copyOf(cs, n << 1);
+                    } finally {
+                        //释放锁
+                        cellsBusy = 0;
+                    }
+                    //
+                    collide = false;
+                    continue;                   // Retry with expanded table
+                }
+                //没抢到锁的话,就要重新计算hash值进入下一次的循环了
+                h = advanceProbe(h);
+            }
+//初始化cells casCellsBusy将cellsBusy修改成1,相当于是加锁了
+            else if (cellsBusy == 0 && cells == cs && casCellsBusy()) {
+                try {                           // Initialize table
+                    //双重校验,判断cells是不是已经被修改了
+                    if (cells == cs) {
+                        //初始化长度为2的数组
+                        Cell[] rs = new Cell[2];
+                        //根据线程的hash来算应该放在什么地方
+                        rs[h & 1] = new Cell(x);
+                        //将rs赋值给cells
+                        cells = rs;
+                        //跳出循环
+                        break done;
+                    }
+                } finally {
+                    //释放锁
+                    cellsBusy = 0;
+                }
+            }
+// 如果数组为空,而且创建数组抢不到锁的话,走base的修改,修改成功就跳出循环,修改失败就下一轮循环
+            else if (casBase(v = base,
+                             (fn == null) ? v + x : fn.applyAsLong(v, x)))
+                break done;
+        }
+    }
+```
+* 将所有结果累加
+```java
+    public long sum() {
+        Cell[] cs = cells;
+        long sum = base;
+        if (cs != null) {
+            for (Cell c : cs)
+                if (c != null)
+                    sum += c.value;
+        }
+        return sum;
+    }
+```
+* 总结
+    * 在base忙不过来的时候,会选择使用cells[]来帮助统计,cell里面存放的值就就是要统计的值
+    * 在add方法中,总是优先走的使用base来统计数据,如果没成功,就使用longAccumulate
+    * longAccumulate方法中,有三个主要的if循环分支,分别是扩容cells,初始化cells,存base,cells存在就不回走后两个了
+    * 扩容cells中有6个if分支,主要的就是创建cell,赋值,增加cell的值
 
 
 
