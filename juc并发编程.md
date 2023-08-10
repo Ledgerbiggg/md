@@ -1094,7 +1094,9 @@ class MyVar {
 * add
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308092034420.png)
 * 
-* 
+
+## ThreadLocal
+
 
 
 
