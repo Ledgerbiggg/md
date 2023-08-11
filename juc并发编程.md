@@ -1296,18 +1296,25 @@ Object O=new Object();
 * 对象实例在堆内存中华的储存布局可以划分为三个部分，对象头，实例数据，和对齐填充
 
 * 对象头
-    * 对象标记
-    * 类元信息
-    * 长度(数组特有)
+    * 对象标记 Mark Word (8B)
+    * 类元信息 Class Pointer (8B)
+    * 长度Length(数组特有) 
 
-* 实例数据
-    * 
+* 实例数据 instance data
 
-* 对齐填充
+* 对齐填充 padding
 
+> 提问
+1. hashcode()记录在对象什么地方
+2. synchronized(o) 这个记录在对象什么地方
+3. 手动收垃圾(如果躲过了gc镰刀15次就会放置到了养老区)
 
+* 解答
+    * 在对象标记里面中保存哈希码、GC标记、GC次数、同步锁标记、偏向锁持有者
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112230519.png)
 
-
+### Mark Word
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112243575.png)
 
 
 
