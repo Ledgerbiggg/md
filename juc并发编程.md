@@ -1260,11 +1260,50 @@ ThreadLocal<Integer> integerThreadLocal1 = ThreadLocal.withInitial(() -> 1);
 弱引用 | 在下一次垃圾回收时会被垃圾回收器回收	| 适用于实现内存敏感的缓存，但比软引用更容易被回收。防止内存泄漏。
 虚引用 | 无法通过虚引用来获取对象的引用	| 通常与ReferenceQueue结合使用，用于跟踪对象被垃圾回收的时机，用于清理与对象相关的资源。不影响垃圾回收。
 
+## 为什么ThreadLocalMap里面的entry使用弱引用(内存溢出的解答)
+
+* Thread和Thread是两个不同的类
+* 线程结束之后要清除ThreadLocalMap中的数据
+* 键为弱引用，如果被垃圾回收之后，值就会被一个为null的键强引用，无法回收
 
 
+```java
+    static class Entry extends WeakReference<ThreadLocal<?>> {
+        Object value;
+        Entry(ThreadLocal<?> k, Object v) {
+            super(k);
+            value = v;
+        }
+    }
+```
+## 最佳实践
 
+* 建议使用初始化
 
+```java
+    ThreadLocal<Integer> sThreadLocal = ThreadLocal.withInitial(()->1);
+```
+* 建议使用static来修饰ThreadLocal
+* 用完之后一定要清除掉remove方法
 
+## 内存布局之布局简介
+```java
+Object O=new Object();
+//Object在方法区
+//O在栈
+//new Object()在堆
+```
+* 对象实例在堆内存中华的储存布局可以划分为三个部分，对象头，实例数据，和对齐填充
+
+* 对象头
+    * 对象标记
+    * 类元信息
+    * 长度(数组特有)
+
+* 实例数据
+    * 
+
+* 对齐填充
 
 
 
