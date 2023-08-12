@@ -1366,10 +1366,37 @@ Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 * 锁升级的功能主要依赖于MarkWord中锁的标志位和释放偏向锁标志位
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308120943844.png)
 
-
-
-
-
+* tip：没有调用hashcode方法，就看不见hash
+```java
+    public static void main(String[] args) {
+        Object o = new Object();
+        //o.hashCode();
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+    }
+```
+```java
+OFF  SZ   TYPE DESCRIPTION               VALUE
+  0   8        (object header: mark)     0x0000000000000001 (non-biasable; age: 0)
+  8   4        (object header: class)    0xf80001e5
+ 12   4        (object alignment gap)    
+Instance size: 16 bytes
+```
+* 使用hash()方法
+```java
+    public static void main(String[] args) {
+        Object o = new Object();
+        o.hashCode();
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+    }
+```
+```java
+java.lang.Object object internals:
+OFF  SZ   TYPE DESCRIPTION               VALUE
+  0   8        (object header: mark)     0x0000001ef7fe8e01 (hash: 0x1ef7fe8e; age: 0)
+  8   4        (object header: class)    0xf80001e5
+ 12   4        (object alignment gap)    
+Instance size: 16 bytes
+```
 
 
 
