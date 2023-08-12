@@ -1328,6 +1328,68 @@ Object O=new Object();
 ### 虚拟机的机栈
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112248869.png)
 
+* 看一眼
+```java
+public class app2 {
+    public static void main(String[] args) {
+        aaa aaa = new aaa();
+        System.out.println(ClassLayout.parseInstance(aaa).toPrintable());
+    }
+}
+class aaa{
+    private String name="ledger";
+    private int age;
+}
+```
+* 打印结果
+```html
+com.ledger3.aaa object internals:
+OFF  SZ               TYPE DESCRIPTION               VALUE
+  0   8                    (object header: mark)     0x0000000000000001 (non-biasable; age: 0)
+  8   4                    (object header: class)    0xf800c392
+ 12   4                int aaa.age                   0
+ 16   4   java.lang.String aaa.name                  (object)
+ 20   4                    (object alignment gap)    
+Instance size: 24 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+## 压缩指针
+* 将类型指针压缩到8B，是默认开启的
+
+## 锁升级
+* 无锁
+* 轻量锁
+* 偏向锁
+* 重量锁(默认的锁)
+
+* 锁升级的功能主要依赖于MarkWord中锁的标志位和释放偏向锁标志位
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308120943844.png)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
