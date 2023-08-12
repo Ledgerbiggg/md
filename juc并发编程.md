@@ -1359,9 +1359,9 @@ Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
 
 ## 锁升级
 * 无锁
-* 轻量锁
 * 偏向锁
-* 重量锁(默认的锁)
+* 轻量锁
+* 重量锁
 
 * 锁升级的功能主要依赖于MarkWord中锁的标志位和释放偏向锁标志位
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308120943844.png)
@@ -1397,6 +1397,133 @@ OFF  SZ   TYPE DESCRIPTION               VALUE
  12   4        (object alignment gap)    
 Instance size: 16 bytes
 ```
+### 四种锁的结构示意图
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121426428.png)
+
+### 偏向锁
+* 当线程第一次竞争抢到锁之后，通过操作修改mark word线程偏向id，偏向模式。
+* 如果不存在其他线程竞争，那么持有偏向锁的线程就永远不需要进行同步
+* 可以避免用户态到内核态的切换
+
+* tips：
+    * 默认情况下synchronized是启用偏向锁的，同一个线程会多次抢到锁，而且很多次都偏向于这个线程(偏向一个线程多次)
+    * 偏向锁在遇到其他线程竞争的时候才会释放锁，线程是不会主动释放偏向锁的
+    * 启动偏向锁有延迟，是四秒钟
+    * 偏向锁和hashcode的位置冲突
+        * 偏向锁之前的(前四秒)直接转换为轻量级锁，
+        * 偏向锁的过程中华，如果要计算hashcode的话，就要将偏向锁转换为重量 锁(轻量级和重量级的Lock Recode可以和hashcode共存)
+
+### 轻量锁CAS
+* 多个线程同时抢夺资源
+* 撤销偏向锁
+* 使用CAS；来替换MarkWord里面的线程id为新线程id
+* 全局安全点来撤销全局偏向锁
+
+#### 撤销偏向锁
+* 偏向锁使用一种等到竞争出现才释放锁的机制，只有当其他线程竞争锁时，持有偏向锁的原来线程才会被撤销。撤销需要等待全局安全点(该时间点上没有字节码正在执行)，同时检查持有偏向锁的线程是否还在执行:
+1. 第一个线程正在执行synchronized方法(处于同步块)，它还没有执行完，其它线程来抢夺，该偏向锁会被取消掉并出现锁升级.
+此时轻量级锁由原持有偏向锁的线程持有，继续执行其同步代码，而正在竞争的线程会进入自旋等待获得该轻量级锁。
+线的头失
+2. 第一个线程执行完成synchronized方法(退出同步块)，则将对象头设置成无锁状态并撤销偏向锁，重新偏向。
+
+* 轻量级锁的原理
+    * JVM会为每个线程在当前线程的栈中创建用于存储锁记录的空间，官方称为Displaced Mark Word。若一个线程获得锁时发现是轻量级锁，会把锁的MarkWord复制到自己的Displaced Mak Word里面。然后线程尝试用CAS将锁的MakWord替换为指向锁记录的指针。如果成功，当前线程获得锁，如果失败，表示Mark word已经被替换成了其他线程的锁记录，说明在与其它线程竞争锁，当前线程就尝试使用自旋来获取锁。
+
+* 锁升级
+    * 在释放锁时，当前线程会使用CAS操作将Displaced Mark Word的内容复制回锁的Mak Word里面。如果没有发生竞争，那么这个复制的操作会成功。如果有其他线程因为自旋多次导致轻量级锁级成了重量级锁，那么CAS操作会失败，此时会释放锁并唤醒被阻塞的线程。
+
+
+### 重量级锁
+
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121540333.png)
+
+锁 | 特点 
+--- | ---
+偏向锁 | 适用于单线程适用的情况，在不存在锁竞争的时候进入同步方法/代码块则使用偏向锁。
+轻量级锁 | 适用于竞争较不激烈的情况(这和乐观锁的使用范围类似)，存在竞争时升级为轻量级锁，轻量级锁采用的是自旋锁，如果同步方法/代码块执行时间很短的话，采用轻量级锁虽然会占用cpu资源但是相对比使用重量级锁还是更高效。
+重量级锁 | 适用于竞争激烈的情况，如果同步方法/代码块执行时间很长，那么使用轻量级锁自旋带来的性能消耗就比使用重量级锁更严重，这时候就需要升级为重量级锁。
+
+## JIT编译器对锁的优化
+
+JIT: just in time compiler 即时编译器
+* 锁消除(锁的存在吗没有任何意义)
+```java
+class my1{
+   public void m1(){
+       Object o = new Object();
+       
+        synchronized (o){
+            System.out.println("-----------");
+        }
+   }
+}
+```
+* 锁粗化
+```java
+//两者一样，前者会被即时编译器编译成后者
+static Object o=new Object();
+    public static void main(String[] args) {
+        new Thread(()->{
+            synchronized (o){
+                System.out.println("111");
+            }
+            synchronized (o){
+                System.out.println("222");
+            }
+            synchronized (o){
+                System.out.println("333");
+            }
+            synchronized (o){
+                System.out.println("444");
+            }
+        }).start();
+
+        new Thread(()->{
+            synchronized (o){
+                System.out.println("111");
+                System.out.println("222");
+                System.out.println("333");
+                System.out.println("444");
+            }
+        }).start();
+    }
+```
+## AQS
+### AQS入门级别的
+* (抽象的队列同步器)
+* 继承树
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121642427.png)
+
+
+* 工作流程
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121637026.png)
+
+## AQS可以干啥
+
+* 每一个线程对象那个被封装到node里面，放在一个双向队列里面，一个状态来标示锁的占用
+
+* 状态位
+* 队列同步器
+    * head 头指针
+    * tail 尾指针
+    * Node (存放在双向队列)
+        * waitStatus
+        * prev 上一个
+        * next 下一个
+        * thread 线程
+
+## AQS之state和CLH队列
+* state：0(空闲) >=1(非空闲)
+
+
+
+
+
+
+
+
+
 
 
 
