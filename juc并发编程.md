@@ -1315,9 +1315,11 @@ Object O=new Object();
 
 ### Mark Word
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112243575.png)
+* tip
+    * 没有数据的话就只会有对象头(大小为16B)
 
-
-
+### 虚拟机的机栈
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112248869.png)
 
 
 
