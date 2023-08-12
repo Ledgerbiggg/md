@@ -1310,10 +1310,17 @@ Object O=new Object();
 3. 手动收垃圾(如果躲过了gc镰刀15次就会放置到了养老区)
 
 * 解答
-    * 在对象标记里面中保存哈希码、GC标记、GC次数、同步锁标记、偏向锁持有者
+
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112230519.png)
 
 ### Mark Word
+
+* 哈希码
+* GC标记
+* GC次数
+* 同步锁标记
+* 偏向锁持有者
+
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112243575.png)
 * tip
     * 没有数据的话就只会有对象头(大小为16B)
