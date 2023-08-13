@@ -1848,7 +1848,7 @@ private final boolean parkAndCheckInterrupt() {
     public final boolean hasQueuedPredecessors() {
         Node t = tail; // Read fields in reverse initialization order
         Node h = head;
-        Node s;
+        Node s; 
         return h != t &&
             ((s = h.next) == null || s.thread != Thread.currentThread());
     }
@@ -1864,16 +1864,17 @@ private final boolean parkAndCheckInterrupt() {
 * 锁降级(锁的严格程度降低)
     * 先获取写锁，后获取读锁，在释放写锁的次序
     * 如果释放了写锁，就降级成为读锁
-    * 不可以升级
+    * 不可以升级 
 
 * tip：
     * 读锁结束，写锁有望；写锁独占，读写全堵
-
-
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308131930776.png)
 
 
 ## 邮戳锁
-* 
+
+* 读和锁可以一起，但是写了要重读(可重入读写锁的优化)
+
 
 
 
