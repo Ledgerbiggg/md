@@ -1821,20 +1821,24 @@ private final boolean parkAndCheckInterrupt() {
         node.waitStatus = Node.CANCELLED;
         
         if (node == tail && compareAndSetTail(node, pred)) {
+            //如果是尾节点，就至二级将前置节点的下一个设置成null
             compareAndSetNext(pred, predNext, null);
         } else {
+            //不是尾节点
             int ws;
+            // 前置节点不为和头部节点
             if (pred != head &&
                 ((ws = pred.waitStatus) == Node.SIGNAL ||
                  (ws <= 0 && compareAndSetWaitStatus(pred, ws, Node.SIGNAL))) &&
                 pred.thread != null) {
+                //当前节点的下一个
                 Node next = node.next;
                 if (next != null && next.waitStatus <= 0)
+                    //设置给前面节点的下一个
                     compareAndSetNext(pred, predNext, next);
             } else {
                 unparkSuccessor(node);
             }
-
             node.next = node; // help GC
         }
     }
