@@ -1748,6 +1748,40 @@ private final boolean parkAndCheckInterrupt() {
 ```
 * unlock
 ```java
+    public void unlock() {
+        sync.release(1);
+    }
+    // AbstractQueuedSynchronizer里面的方法
+    public final boolean release(int arg) {
+    //释放成功
+    if (tryRelease(arg)) {
+        Node h = head;
+        // 查验头结点状态
+        if (h != null && h.waitStatus != 0)
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+
+    protected final boolean tryRelease(int releases) {
+    //getState 获取占用状态 
+    int c = getState() - releases;
+    if (Thread.currentThread() != getExclusiveOwnerThread())、
+        // 不允许不持有锁的对象释放锁
+        throw new IllegalMonitorStateException();
+    boolean free = false;
+    if (c == 0) {
+        // 如果没人占用
+        free = true;
+        // 就设置线程是空
+        setExclusiveOwnerThread(null);
+    }
+    // 设置状态c
+    setState(c);
+    return free;
+}
+
 
 ```
 
