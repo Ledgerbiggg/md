@@ -1808,17 +1808,18 @@ private final boolean parkAndCheckInterrupt() {
  private void cancelAcquire(Node node) {
         if (node == null)
             return;
-
+        //清除线程
         node.thread = null;
-
+        //获取前一个
         Node pred = node.prev;
+        //一直获取前一个(获取不是要退出的，waitStatus>0表示是要退出的)
         while (pred.waitStatus > 0)
             node.prev = pred = pred.prev;
-
+        //前一个的下一个
         Node predNext = pred.next;
-
+        //设置当前的线程是取消状态
         node.waitStatus = Node.CANCELLED;
-
+        
         if (node == tail && compareAndSetTail(node, pred)) {
             compareAndSetNext(pred, predNext, null);
         } else {
