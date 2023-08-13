@@ -1547,8 +1547,205 @@ Node nextWaiter;
 //返回前驱节点
 predecessor()
 ```
-## AQS源码分析
+## AQS源码分析(以ReentrantLock为例)
+```java
+    //实现了Lock
+    public class ReentrantLock implements Lock, java.io.Serializable{}
+    //静态内部类(继承了AbstractQueuedSynchronizer)
+    abstract static class Sync extends AbstractQueuedSynchronizer {}
+    //不传参数默认是非公平锁
+    public ReentrantLock() {
+        sync = new NonfairSync();
+    }
 
+    public void lock() {
+        sync.lock();
+    }
+    //非公平锁的实现方法
+    static final class NonfairSync extends Sync {
+        private static final long serialVersionUID = 7316153563782823691L;
+
+        final void lock() {     
+            //尝试直接抢锁
+            if (compareAndSetState(0, 1))
+                //设置当前占用线程是自己
+                setExclusiveOwnerThread(Thread.currentThread());
+            else
+                //尝试抢锁
+                acquire(1);
+        }
+    }
+    //公平锁的实现方法
+    static final class FairSync extends Sync {
+        private static final long serialVersionUID = -3000897897090466540L;
+        final void lock() {
+            //尝试抢锁
+            acquire(1);
+        }
+    }
+
+    //acquiref方法实现在父类AbstractQueuedSynchronizer中
+    public final void acquire(int arg) {
+    //tryAcquire尝试抢锁、没成功就会addWaiter,就会去排队
+    if (!tryAcquire(arg) &&
+        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+    }
+
+    //非公平的抢
+    final boolean nonfairTryAcquire(int acquires) {
+    //
+    final Thread current = Thread.currentThread();
+    //获取状态
+    int c = getState();
+    //没被占用是吗？
+    if (c == 0) {
+        //占用
+        if (compareAndSetState(0, acquires)) {
+            //设置线程是自己
+            setExclusiveOwnerThread(current);
+            //返回占用成功的布尔
+            return true;
+        }
+    }
+    //当前线程是自己了已经是吗
+    else if (current == getExclusiveOwnerThread()) {
+        //这是可重入锁的抢锁次数
+        int nextc = c + acquires;
+        //释放锁过多，没锁释放报错
+        if (nextc < 0) // overflow
+            throw new Error("Maximum lock count exceeded");
+        setState(nextc);
+        //返回占用成功的布尔
+        return true;
+    }
+    return false;
+}
+    //公平的抢
+     protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) {
+                //hasQueuedPredecessors()看看你前面是不是有人在排队
+                if (!hasQueuedPredecessors() &&
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) {
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+
+```
+* 排队的代码(AbstractQueuedSynchronizer中实现)
+```java
+    private Node addWaiter(Node mode) {
+        //创建节点，设置模式
+        Node node = new Node(Thread.currentThread(), mode);
+        //前一个指针是尾指针
+        Node pred = tail;
+        //尾指针不为空
+        if (pred != null) {
+            //这个节点的前一个是尾指针
+            node.prev = pred;
+            // 原子更换尾指针
+            if (compareAndSetTail(pred, node)) {
+                // 设置尾指针的下一个是这个节点
+                pred.next = node;
+                //返回这个节点
+                return node;
+            }
+        }
+        // 如果尾指针等于空就要初始化队列，初始化之后就不会走这里了
+        enq(node);
+        return node;
+    }
+    //反复入队
+    private Node enq(final Node node) {
+        //就是头执政设置成空节点，后面添加东西
+        for (;;) {
+            Node t = tail;
+            //尾指针为空
+            if (t == null) { // Must initialize
+                //设置一个空节点为头节点
+                if (compareAndSetHead(new Node()))
+                    tail = head;
+            } else {
+                //尾指针不为空
+                //设置当节点的前一个节点是尾指针
+                node.prev = t;
+                //设置尾节点
+                if (compareAndSetTail(t, node)) {
+                    //成功就把尾节点的下一个设置成为
+                    t.next = node;
+                    return t;
+                }
+                //尾节点设置不成功，就循环，下一轮再设置自己的的前节点是尾节点
+            }
+        }
+    }
+    // 进入队列之后的方法
+    final boolean acquireQueued(final Node node, int arg) {
+    // 默认不中断
+    boolean failed = true;
+    try {
+        // 
+        boolean interrupted = false;
+        for (;;) {
+            // 获得前置节点
+            final Node p = node.predecessor();
+            //如果前一个节点是头节点(就抢锁)
+            if (p == head && tryAcquire(arg)) {
+                setHead(node);
+                p.next = null; // help GC
+                failed = false;
+                return interrupted;
+            }
+            // shouldParkAfterFailedAcquire将前置节点改为-1
+            if (shouldParkAfterFailedAcquire(p, node) &&
+                //将当前节点阻塞
+                parkAndCheckInterrupt())
+                interrupted = true;
+        }
+    } finally {
+        // 异常情况出队伍
+        if (failed)
+            cancelAcquire(node);
+    }
+}
+
+private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        // node 初始化的时候就是0 
+        int ws = pred.waitStatus;
+        //SIGNAL=-1
+        if (ws == Node.SIGNAL)
+            return true;
+        if (ws > 0) {
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            //前置节点的等待状态改为-1
+            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        }
+        return false;
+    }
+// 当前线程被阻塞
+private final boolean parkAndCheckInterrupt() {
+    //阻塞当前节点
+    LockSupport.park(this);
+    
+    return Thread.interrupted();
+}
+```
 
 
 
