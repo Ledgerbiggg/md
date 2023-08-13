@@ -1515,12 +1515,39 @@ static Object o=new Object();
 
 ## AQS之state和CLH队列
 * state：0(空闲) >=1(非空闲)
+* CLH：双链表对列，通过自旋等待，state判断是否阻塞，尾部入队，头部出队
+
+## Node节点介绍
+```java
+
+// 共享型的等待锁
+static final Node SHARED = new Node();
+// 独占型的等待锁
+static final Node EXCLUSIVE = null;
+// 线程获取锁的请求已经取消了
+static final int CANCELLED =  1;
+// 线程已经准备好了，就等待资源释放
+static final int SIGNAL = -1;
+// 节点在等待队列中，节点等待唤醒
+static final int CONDITION = -2;
+// (传播)全部通知，share情况下面可用
+static final int PROPAGATE = -3;
 
 
-
-
-
-
+// 等待状态(被初始化的时候默认是0)
+volatile int waitStatus;
+// 上一个节点
+volatile Node prev;
+// 下一个节点
+volatile Node next;
+// 当前线程
+volatile Thread thread;
+// 指向下一个处于CONDITION状态的节点
+Node nextWaiter;
+//返回前驱节点
+predecessor()
+```
+## AQS源码分析
 
 
 
