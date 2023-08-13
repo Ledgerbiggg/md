@@ -1781,6 +1781,26 @@ private final boolean parkAndCheckInterrupt() {
     setState(c);
     return free;
 }
+    private void unparkSuccessor(Node node) {
+
+           int ws = node.waitStatus;
+
+           if (ws < 0)
+               //更改头结点状态
+               compareAndSetWaitStatus(node, ws, 0);    
+           //获取下一个节点
+           Node s = node.next;
+           //
+           if (s == null || s.waitStatus > 0) {
+               s = null;
+               for (Node t = tail; t != null && t != node; t = t.prev)
+                   if (t.waitStatus <= 0)
+                       s = t;
+           }
+           if (s != null)
+               //唤醒下一个节点的
+               LockSupport.unpark(s.thread);
+       }
 
 
 ```
