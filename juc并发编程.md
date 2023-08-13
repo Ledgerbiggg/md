@@ -1703,6 +1703,7 @@ predecessor()
             final Node p = node.predecessor();
             //如果前一个节点是头节点(就抢锁)
             if (p == head && tryAcquire(arg)) {
+                //当前节点抢到就设置头节点是当前节点
                 setHead(node);
                 p.next = null; // help GC
                 failed = false;
@@ -1801,10 +1802,42 @@ private final boolean parkAndCheckInterrupt() {
                //唤醒下一个节点的
                LockSupport.unpark(s.thread);
        }
-
-
 ```
+* 取消队列
+```java
+ private void cancelAcquire(Node node) {
+        if (node == null)
+            return;
 
+        node.thread = null;
+
+        Node pred = node.prev;
+        while (pred.waitStatus > 0)
+            node.prev = pred = pred.prev;
+
+        Node predNext = pred.next;
+
+        node.waitStatus = Node.CANCELLED;
+
+        if (node == tail && compareAndSetTail(node, pred)) {
+            compareAndSetNext(pred, predNext, null);
+        } else {
+            int ws;
+            if (pred != head &&
+                ((ws = pred.waitStatus) == Node.SIGNAL ||
+                 (ws <= 0 && compareAndSetWaitStatus(pred, ws, Node.SIGNAL))) &&
+                pred.thread != null) {
+                Node next = node.next;
+                if (next != null && next.waitStatus <= 0)
+                    compareAndSetNext(pred, predNext, next);
+            } else {
+                unparkSuccessor(node);
+            }
+
+            node.next = node; // help GC
+        }
+    }
+```
 
 
 
