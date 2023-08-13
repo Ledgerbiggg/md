@@ -1858,8 +1858,9 @@ private final boolean parkAndCheckInterrupt() {
     * 一个资源可以被多个读线程访问，或者被一个写线程访问，但是不能同时存在读写线程
 
 * 缺点
-    * 写锁饥饿
-    * 注意，锁降级 
+    * 写少读多锁饥饿
+    * 写锁读少效率低
+    * 注意，锁降级
 
 * 锁降级(锁的严格程度降低)
     * 先获取写锁，后获取读锁，在释放写锁的次序
@@ -1872,8 +1873,106 @@ private final boolean parkAndCheckInterrupt() {
 
 
 ## 邮戳锁
+* 读和锁可以一起，但是写了之后要重读(可重入读写锁的优化，使用乐观读)
 
-* 读和锁可以一起，但是写了要重读(可重入读写锁的优化)
+* tip
+    * 所有获取锁的方法，都返回一个邮戳，stamp为0表示获取失败，其余都表示获取成功
+    * 所有释放锁的方法，都需要一个邮戳，stamp都要和成功获取stamp的一致
+    * 都是不可重入的，重入会死锁
+
+```java
+public class app88 {
+    static int num = 0;
+    static StampedLock stampedLock = new StampedLock();
+
+    // 写数据
+    public void write() {
+        long l = stampedLock.writeLock();
+        System.out.println("准备修改");
+        try {
+            num++;
+        } finally {
+            stampedLock.unlockWrite(l);
+        }
+        System.out.println("结束修改");
+    }
+    //悲观读数据
+    public void read() {
+        long l = stampedLock.readLock();
+        System.out.println("准备读取");
+        try {
+            for (int i = 0; i < 5; i++) {
+                try {
+                    Thread.sleep(4000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println("读取数据"+num);
+        } finally {
+            stampedLock.unlock(l);
+        }
+        System.out.println("结束读取");
+    }
+
+    //乐观读数据
+    public void tryOptimisticRead(){
+        long l = stampedLock.tryOptimisticRead();
+        int res;
+        //validate用来奇数据是不是被修改了
+        System.out.println("校验数据"+stampedLock.validate(l));
+
+        System.out.println("乐观读");
+        for (int i = 0; i < 4; i++) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        //如果有修改的，就转化为悲观读
+        if (!stampedLock.validate(l)) {
+            long l1 = stampedLock.readLock();
+            try {
+                Thread.sleep(100);
+                res=num;
+                System.out.println("悲观读取数据"+res);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }finally {
+                stampedLock.unlockRead(l1);
+            }
+        }
+    }
+    public static void main(String[] args) {
+        app88 app88 = new app88();
+        new Thread(app88::tryOptimisticRead).start();
+        new Thread(app88::write).start();
+    }
+}
+
+```
+
+* 缺点
+    * 不支持重入
+    * 悲观读锁不支持条件变量(condition)
+    * 使用stampedlock一定不要调用中断操作，即不要调用interrupt()方法
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
