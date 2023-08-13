@@ -1843,10 +1843,37 @@ private final boolean parkAndCheckInterrupt() {
         }
     }
 ```
+* 公平多出来的方法
+```java
+    public final boolean hasQueuedPredecessors() {
+        Node t = tail; // Read fields in reverse initialization order
+        Node h = head;
+        Node s;
+        return h != t &&
+            ((s = h.next) == null || s.thread != Thread.currentThread());
+    }
+```
+## 读写锁
+* 优点
+    * 一个资源可以被多个读线程访问，或者被一个写线程访问，但是不能同时存在读写线程
+
+* 缺点
+    * 写锁饥饿
+    * 注意，锁降级 
+
+* 锁降级(锁的严格程度降低)
+    * 先获取写锁，后获取读锁，在释放写锁的次序
+    * 如果释放了写锁，就降级成为读锁
+    * 不可以升级
+
+* tip：
+    * 读锁结束，写锁有望；写锁独占，读写全堵
 
 
 
 
+## 邮戳锁
+* 
 
 
 
