@@ -1216,6 +1216,7 @@ final void longAccumulate(long x, LongBinaryOperator fn,
         }
     }
 ```
+
 * 将所有结果累加
 ```java
     public long sum() {
