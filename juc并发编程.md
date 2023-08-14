@@ -1237,7 +1237,6 @@ final void longAccumulate(long x, LongBinaryOperator fn,
     * 扩容cells中有6个if分支,主要的就是创建cell,赋值,增加cell的值,比较cpu个数和cells长度,一样或者超过了就不扩容,扩容
 
 
-
 ## ThreadLocal
 
 * 初始化
@@ -1248,11 +1247,720 @@ ThreadLocal<Integer> integerThreadLocal1 = ThreadLocal.withInitial(() -> 1);
 * tip
     * 如果线程池一直不关，存在线程复用，但是线程一直有threadlocal，那么就会内存泄露
 
-
-
-
 ## 源码分析看这边
 [具体看这个文章](https://ledgerhhh.art/index.php/archives/20/)
+
+* 内存泄露
+    * 强、软、弱、虚引用
+
+
+类型   | 特点	| 用途和注意事项
+--- | --- | ---
+强引用 | 不会被垃圾回收器回收	| 普通对象引用，当没有引用时，垃圾回收器无法回收对象(需要手动gc)。可能导致内存泄漏。
+软引用 | 在内存不足时会被垃圾回收器回收	| 适用于实现内存敏感的高速缓存。可通过软引用来保存可以重建的对象，但并不是绝对保证不被回收。
+弱引用 | 在下一次垃圾回收时会被垃圾回收器回收	| 适用于实现内存敏感的缓存，但比软引用更容易被回收。防止内存泄漏。
+虚引用 | 无法通过虚引用来获取对象的引用	| 通常与ReferenceQueue结合使用，用于跟踪对象被垃圾回收的时机，用于清理与对象相关的资源。不影响垃圾回收。
+
+## 为什么ThreadLocalMap里面的entry使用弱引用(内存溢出的解答)
+
+* Thread和Thread是两个不同的类
+* 线程结束之后要清除ThreadLocalMap中的数据
+* 键为弱引用，如果被垃圾回收之后，值就会被一个为null的键强引用，无法回收
+
+
+```java
+    static class Entry extends WeakReference<ThreadLocal<?>> {
+        Object value;
+        Entry(ThreadLocal<?> k, Object v) {
+            super(k);
+            value = v;
+        }
+    }
+```
+## 最佳实践
+
+* 建议使用初始化
+
+```java
+    ThreadLocal<Integer> sThreadLocal = ThreadLocal.withInitial(()->1);
+```
+* 建议使用static来修饰ThreadLocal
+* 用完之后一定要清除掉remove方法
+
+## 内存布局之布局简介
+```java
+Object O=new Object();
+//Object在方法区
+//O在栈
+//new Object()在堆
+```
+* 对象实例在堆内存中华的储存布局可以划分为三个部分，对象头，实例数据，和对齐填充
+
+* 对象头
+    * 对象标记 Mark Word (8B)
+    * 类元信息 Class Pointer (8B)
+    * 长度Length(数组特有) 
+
+* 实例数据 instance data
+
+* 对齐填充 padding
+
+> 提问
+1. hashcode()记录在对象什么地方
+2. synchronized(o) 这个记录在对象什么地方
+3. 手动收垃圾(如果躲过了gc镰刀15次就会放置到了养老区)
+
+* 解答
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112230519.png)
+
+### Mark Word
+
+* 哈希码
+* GC标记
+* GC次数
+* 同步锁标记
+* 偏向锁持有者
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112243575.png)
+* tip
+    * 没有数据的话就只会有对象头(大小为16B)
+
+### 虚拟机的机栈
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308112248869.png)
+
+* 看一眼
+```java
+public class app2 {
+    public static void main(String[] args) {
+        aaa aaa = new aaa();
+        System.out.println(ClassLayout.parseInstance(aaa).toPrintable());
+    }
+}
+class aaa{
+    private String name="ledger";
+    private int age;
+}
+```
+* 打印结果
+```html
+com.ledger3.aaa object internals:
+OFF  SZ               TYPE DESCRIPTION               VALUE
+  0   8                    (object header: mark)     0x0000000000000001 (non-biasable; age: 0)
+  8   4                    (object header: class)    0xf800c392
+ 12   4                int aaa.age                   0
+ 16   4   java.lang.String aaa.name                  (object)
+ 20   4                    (object alignment gap)    
+Instance size: 24 bytes
+Space losses: 0 bytes internal + 4 bytes external = 4 bytes total
+```
+
+## 压缩指针
+* 将类型指针压缩到8B，是默认开启的
+
+## 锁升级
+* 无锁
+* 偏向锁
+* 轻量锁
+* 重量锁
+
+* 锁升级的功能主要依赖于MarkWord中锁的标志位和释放偏向锁标志位
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308120943844.png)
+
+* tip：没有调用hashcode方法，就看不见hash
+```java
+    public static void main(String[] args) {
+        Object o = new Object();
+        //o.hashCode();
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+    }
+```
+```java
+OFF  SZ   TYPE DESCRIPTION               VALUE
+  0   8        (object header: mark)     0x0000000000000001 (non-biasable; age: 0)
+  8   4        (object header: class)    0xf80001e5
+ 12   4        (object alignment gap)    
+Instance size: 16 bytes
+```
+* 使用hash()方法
+```java
+    public static void main(String[] args) {
+        Object o = new Object();
+        o.hashCode();
+        System.out.println(ClassLayout.parseInstance(o).toPrintable());
+    }
+```
+```java
+java.lang.Object object internals:
+OFF  SZ   TYPE DESCRIPTION               VALUE
+  0   8        (object header: mark)     0x0000001ef7fe8e01 (hash: 0x1ef7fe8e; age: 0)
+  8   4        (object header: class)    0xf80001e5
+ 12   4        (object alignment gap)    
+Instance size: 16 bytes
+```
+### 四种锁的结构示意图
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121426428.png)
+
+### 偏向锁
+* 当线程第一次竞争抢到锁之后，通过操作修改mark word线程偏向id，偏向模式。
+* 如果不存在其他线程竞争，那么持有偏向锁的线程就永远不需要进行同步
+* 可以避免用户态到内核态的切换
+
+* tips：
+    * 默认情况下synchronized是启用偏向锁的，同一个线程会多次抢到锁，而且很多次都偏向于这个线程(偏向一个线程多次)
+    * 偏向锁在遇到其他线程竞争的时候才会释放锁，线程是不会主动释放偏向锁的
+    * 启动偏向锁有延迟，是四秒钟
+    * 偏向锁和hashcode的位置冲突
+        * 偏向锁之前的(前四秒)直接转换为轻量级锁，
+        * 偏向锁的过程中华，如果要计算hashcode的话，就要将偏向锁转换为重量 锁(轻量级和重量级的Lock Recode可以和hashcode共存)
+
+### 轻量锁CAS
+* 多个线程同时抢夺资源
+* 撤销偏向锁
+* 使用CAS；来替换MarkWord里面的线程id为新线程id
+* 全局安全点来撤销全局偏向锁
+
+#### 撤销偏向锁
+* 偏向锁使用一种等到竞争出现才释放锁的机制，只有当其他线程竞争锁时，持有偏向锁的原来线程才会被撤销。撤销需要等待全局安全点(该时间点上没有字节码正在执行)，同时检查持有偏向锁的线程是否还在执行:
+1. 第一个线程正在执行synchronized方法(处于同步块)，它还没有执行完，其它线程来抢夺，该偏向锁会被取消掉并出现锁升级.
+此时轻量级锁由原持有偏向锁的线程持有，继续执行其同步代码，而正在竞争的线程会进入自旋等待获得该轻量级锁。
+线的头失
+2. 第一个线程执行完成synchronized方法(退出同步块)，则将对象头设置成无锁状态并撤销偏向锁，重新偏向。
+
+* 轻量级锁的原理
+    * JVM会为每个线程在当前线程的栈中创建用于存储锁记录的空间，官方称为Displaced Mark Word。若一个线程获得锁时发现是轻量级锁，会把锁的MarkWord复制到自己的Displaced Mak Word里面。然后线程尝试用CAS将锁的MakWord替换为指向锁记录的指针。如果成功，当前线程获得锁，如果失败，表示Mark word已经被替换成了其他线程的锁记录，说明在与其它线程竞争锁，当前线程就尝试使用自旋来获取锁。
+
+* 锁升级
+    * 在释放锁时，当前线程会使用CAS操作将Displaced Mark Word的内容复制回锁的Mak Word里面。如果没有发生竞争，那么这个复制的操作会成功。如果有其他线程因为自旋多次导致轻量级锁级成了重量级锁，那么CAS操作会失败，此时会释放锁并唤醒被阻塞的线程。
+
+
+### 重量级锁
+
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121540333.png)
+
+锁 | 特点 
+--- | ---
+偏向锁 | 适用于单线程适用的情况，在不存在锁竞争的时候进入同步方法/代码块则使用偏向锁。
+轻量级锁 | 适用于竞争较不激烈的情况(这和乐观锁的使用范围类似)，存在竞争时升级为轻量级锁，轻量级锁采用的是自旋锁，如果同步方法/代码块执行时间很短的话，采用轻量级锁虽然会占用cpu资源但是相对比使用重量级锁还是更高效。
+重量级锁 | 适用于竞争激烈的情况，如果同步方法/代码块执行时间很长，那么使用轻量级锁自旋带来的性能消耗就比使用重量级锁更严重，这时候就需要升级为重量级锁。
+
+## JIT编译器对锁的优化
+
+JIT: just in time compiler 即时编译器
+* 锁消除(锁的存在吗没有任何意义)
+```java
+class my1{
+   public void m1(){
+       Object o = new Object();
+       
+        synchronized (o){
+            System.out.println("-----------");
+        }
+   }
+}
+```
+* 锁粗化
+```java
+//两者一样，前者会被即时编译器编译成后者
+static Object o=new Object();
+    public static void main(String[] args) {
+        new Thread(()->{
+            synchronized (o){
+                System.out.println("111");
+            }
+            synchronized (o){
+                System.out.println("222");
+            }
+            synchronized (o){
+                System.out.println("333");
+            }
+            synchronized (o){
+                System.out.println("444");
+            }
+        }).start();
+
+        new Thread(()->{
+            synchronized (o){
+                System.out.println("111");
+                System.out.println("222");
+                System.out.println("333");
+                System.out.println("444");
+            }
+        }).start();
+    }
+```
+## AQS
+### AQS入门级别的
+* (抽象的队列同步器)
+* 继承树
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121642427.png)
+
+
+* 工作流程
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308121637026.png)
+
+## AQS可以干啥
+
+* 每一个线程对象那个被封装到node里面，放在一个双向队列里面，一个状态来标示锁的占用
+
+* 状态位
+* 队列同步器
+    * head 头指针
+    * tail 尾指针
+    * Node (存放在双向队列)
+        * waitStatus
+        * prev 上一个
+        * next 下一个
+        * thread 线程
+
+## AQS之state和CLH队列
+* state：0(空闲) >=1(非空闲)
+* CLH：双链表对列，通过自旋等待，state判断是否阻塞，尾部入队，头部出队
+
+## Node节点介绍
+```java
+
+// 共享型的等待锁
+static final Node SHARED = new Node();
+// 独占型的等待锁
+static final Node EXCLUSIVE = null;
+// 线程获取锁的请求已经取消了
+static final int CANCELLED =  1;
+// 线程已经准备好了，就等待资源释放
+static final int SIGNAL = -1;
+// 节点在等待队列中，节点等待唤醒
+static final int CONDITION = -2;
+// (传播)全部通知，share情况下面可用
+static final int PROPAGATE = -3;
+
+
+// 等待状态(被初始化的时候默认是0)
+volatile int waitStatus;
+// 上一个节点
+volatile Node prev;
+// 下一个节点
+volatile Node next;
+// 当前线程
+volatile Thread thread;
+// 指向下一个处于CONDITION状态的节点
+Node nextWaiter;
+//返回前驱节点
+predecessor()
+```
+## AQS源码分析(以ReentrantLock为例)
+```java
+    //实现了Lock
+    public class ReentrantLock implements Lock, java.io.Serializable{}
+    //静态内部类(继承了AbstractQueuedSynchronizer)
+    abstract static class Sync extends AbstractQueuedSynchronizer {}
+    //不传参数默认是非公平锁
+    public ReentrantLock() {
+        sync = new NonfairSync();
+    }
+
+    public void lock() {
+        sync.lock();
+    }
+    //非公平锁的实现方法
+    static final class NonfairSync extends Sync {
+        private static final long serialVersionUID = 7316153563782823691L;
+
+        final void lock() {     
+            //尝试直接抢锁
+            if (compareAndSetState(0, 1))
+                //设置当前占用线程是自己
+                setExclusiveOwnerThread(Thread.currentThread());
+            else
+                //尝试抢锁
+                acquire(1);
+        }
+    }
+    //公平锁的实现方法
+    static final class FairSync extends Sync {
+        private static final long serialVersionUID = -3000897897090466540L;
+        final void lock() {
+            //尝试抢锁
+            acquire(1);
+        }
+    }
+
+    //acquiref方法实现在父类AbstractQueuedSynchronizer中
+    public final void acquire(int arg) {
+    //tryAcquire尝试抢锁、没成功就会addWaiter,就会去排队
+    if (!tryAcquire(arg) &&
+        acquireQueued(addWaiter(Node.EXCLUSIVE), arg))
+        selfInterrupt();
+    }
+
+    //非公平的抢
+    final boolean nonfairTryAcquire(int acquires) {
+    //
+    final Thread current = Thread.currentThread();
+    //获取状态
+    int c = getState();
+    //没被占用是吗？
+    if (c == 0) {
+        //占用
+        if (compareAndSetState(0, acquires)) {
+            //设置线程是自己
+            setExclusiveOwnerThread(current);
+            //返回占用成功的布尔
+            return true;
+        }
+    }
+    //当前线程是自己了已经是吗
+    else if (current == getExclusiveOwnerThread()) {
+        //这是可重入锁的抢锁次数
+        int nextc = c + acquires;
+        //释放锁过多，没锁释放报错
+        if (nextc < 0) // overflow
+            throw new Error("Maximum lock count exceeded");
+        setState(nextc);
+        //返回占用成功的布尔
+        return true;
+    }
+    return false;
+}
+    //公平的抢
+     protected final boolean tryAcquire(int acquires) {
+            final Thread current = Thread.currentThread();
+            int c = getState();
+            if (c == 0) {
+                //hasQueuedPredecessors()看看你前面是不是有人在排队
+                if (!hasQueuedPredecessors() &&
+                    compareAndSetState(0, acquires)) {
+                    setExclusiveOwnerThread(current);
+                    return true;
+                }
+            }
+            else if (current == getExclusiveOwnerThread()) {
+                int nextc = c + acquires;
+                if (nextc < 0)
+                    throw new Error("Maximum lock count exceeded");
+                setState(nextc);
+                return true;
+            }
+            return false;
+        }
+
+```
+* 排队的代码(AbstractQueuedSynchronizer中实现)
+```java
+    private Node addWaiter(Node mode) {
+        //创建节点，设置模式
+        Node node = new Node(Thread.currentThread(), mode);
+        //前一个指针是尾指针
+        Node pred = tail;
+        //尾指针不为空
+        if (pred != null) {
+            //这个节点的前一个是尾指针
+            node.prev = pred;
+            // 原子更换尾指针
+            if (compareAndSetTail(pred, node)) {
+                // 设置尾指针的下一个是这个节点
+                pred.next = node;
+                //返回这个节点
+                return node;
+            }
+        }
+        // 如果尾指针等于空就要初始化队列，初始化之后就不会走这里了
+        enq(node);
+        return node;
+    }
+    //反复入队
+    private Node enq(final Node node) {
+        //就是头执政设置成空节点，后面添加东西
+        for (;;) {
+            Node t = tail;
+            //尾指针为空
+            if (t == null) { // Must initialize
+                //设置一个空节点为头节点
+                if (compareAndSetHead(new Node()))
+                    tail = head;
+            } else {
+                //尾指针不为空
+                //设置当节点的前一个节点是尾指针
+                node.prev = t;
+                //设置尾节点
+                if (compareAndSetTail(t, node)) {
+                    //成功就把尾节点的下一个设置成为
+                    t.next = node;
+                    return t;
+                }
+                //尾节点设置不成功，就循环，下一轮再设置自己的的前节点是尾节点
+            }
+        }
+    }
+    // 进入队列之后的方法
+    final boolean acquireQueued(final Node node, int arg) {
+    // 默认不中断
+    boolean failed = true;
+    try {
+        // 
+        boolean interrupted = false;
+        for (;;) {
+            // 获得前置节点
+            final Node p = node.predecessor();
+            //如果前一个节点是头节点(就抢锁)
+            if (p == head && tryAcquire(arg)) {
+                //当前节点抢到就设置头节点是当前节点
+                setHead(node);
+                p.next = null; // help GC
+                failed = false;
+                return interrupted;
+            }
+            // shouldParkAfterFailedAcquire将前置节点改为-1
+            if (shouldParkAfterFailedAcquire(p, node) &&
+                //将当前节点阻塞
+                parkAndCheckInterrupt())
+                interrupted = true;
+        }
+    } finally {
+        // 异常情况出队伍
+        if (failed)
+            cancelAcquire(node);
+    }
+}
+
+private static boolean shouldParkAfterFailedAcquire(Node pred, Node node) {
+        // node 初始化的时候就是0 
+        int ws = pred.waitStatus;
+        //SIGNAL=-1
+        if (ws == Node.SIGNAL)
+            return true;
+        if (ws > 0) {
+            do {
+                node.prev = pred = pred.prev;
+            } while (pred.waitStatus > 0);
+            pred.next = node;
+        } else {
+            //前置节点的等待状态改为-1
+            compareAndSetWaitStatus(pred, ws, Node.SIGNAL);
+        }
+        return false;
+    }
+// 当前线程被阻塞
+private final boolean parkAndCheckInterrupt() {
+    //阻塞当前节点
+    LockSupport.park(this);
+    
+    return Thread.interrupted();
+}
+```
+* unlock
+```java
+    public void unlock() {
+        sync.release(1);
+    }
+    // AbstractQueuedSynchronizer里面的方法
+    public final boolean release(int arg) {
+    //释放成功
+    if (tryRelease(arg)) {
+        Node h = head;
+        // 查验头结点状态
+        if (h != null && h.waitStatus != 0)
+            unparkSuccessor(h);
+        return true;
+    }
+    return false;
+}
+
+    protected final boolean tryRelease(int releases) {
+    //getState 获取占用状态 
+    int c = getState() - releases;
+    if (Thread.currentThread() != getExclusiveOwnerThread())、
+        // 不允许不持有锁的对象释放锁
+        throw new IllegalMonitorStateException();
+    boolean free = false;
+    if (c == 0) {
+        // 如果没人占用
+        free = true;
+        // 就设置线程是空
+        setExclusiveOwnerThread(null);
+    }
+    // 设置状态c
+    setState(c);
+    return free;
+}
+    private void unparkSuccessor(Node node) {
+
+           int ws = node.waitStatus;
+
+           if (ws < 0)
+               //更改头结点状态
+               compareAndSetWaitStatus(node, ws, 0);    
+           //获取下一个节点
+           Node s = node.next;
+           //
+           if (s == null || s.waitStatus > 0) {
+               s = null;
+               for (Node t = tail; t != null && t != node; t = t.prev)
+                   if (t.waitStatus <= 0)
+                       s = t;
+           }
+           if (s != null)
+               //唤醒下一个节点的
+               LockSupport.unpark(s.thread);
+       }
+```
+* 取消队列
+```java
+ private void cancelAcquire(Node node) {
+        if (node == null)
+            return;
+        //清除线程
+        node.thread = null;
+        //获取前一个
+        Node pred = node.prev;
+        //一直获取前一个(获取不是要退出的，waitStatus>0表示是要退出的)
+        while (pred.waitStatus > 0)
+            node.prev = pred = pred.prev;
+        //前一个的下一个
+        Node predNext = pred.next;
+        //设置当前的线程是取消状态
+        node.waitStatus = Node.CANCELLED;
+        
+        if (node == tail && compareAndSetTail(node, pred)) {
+            //如果是尾节点，就至二级将前置节点的下一个设置成null
+            compareAndSetNext(pred, predNext, null);
+        } else {
+            //不是尾节点
+            int ws;
+            // 前置节点不为和头部节点
+            if (pred != head &&
+                ((ws = pred.waitStatus) == Node.SIGNAL ||
+                 (ws <= 0 && compareAndSetWaitStatus(pred, ws, Node.SIGNAL))) &&
+                pred.thread != null) {
+                //当前节点的下一个
+                Node next = node.next;
+                if (next != null && next.waitStatus <= 0)
+                    //设置给前面节点的下一个
+                    compareAndSetNext(pred, predNext, next);
+            } else {
+                unparkSuccessor(node);
+            }
+            node.next = node; // help GC
+        }
+    }
+```
+* 公平多出来的方法
+```java
+    public final boolean hasQueuedPredecessors() {
+        Node t = tail; // Read fields in reverse initialization order
+        Node h = head;
+        Node s; 
+        return h != t &&
+            ((s = h.next) == null || s.thread != Thread.currentThread());
+    }
+```
+## 读写锁
+* 优点
+    * 一个资源可以被多个读线程访问，或者被一个写线程访问，但是不能同时存在读写线程
+
+* 缺点
+    * 写少读多锁饥饿
+    * 写锁读少效率低
+    * 注意，锁降级
+
+* 锁降级(锁的严格程度降低)
+    * 先获取写锁，后获取读锁，在释放写锁的次序
+    * 如果释放了写锁，就降级成为读锁
+    * 不可以升级 
+
+* tip：
+    * 读锁结束，写锁有望；写锁独占，读写全堵
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202308131930776.png)
+
+
+## 邮戳锁
+* 读和锁可以一起，但是写了之后要重读(可重入读写锁的优化，使用乐观读)
+
+* tip
+    * 所有获取锁的方法，都返回一个邮戳，stamp为0表示获取失败，其余都表示获取成功
+    * 所有释放锁的方法，都需要一个邮戳，stamp都要和成功获取stamp的一致
+    * 都是不可重入的，重入会死锁
+
+```java
+public class app88 {
+    static int num = 0;
+    static StampedLock stampedLock = new StampedLock();
+
+    // 写数据
+    public void write() {
+        long l = stampedLock.writeLock();
+        System.out.println("准备修改");
+        try {
+            num++;
+        } finally {
+            stampedLock.unlockWrite(l);
+        }
+        System.out.println("结束修改");
+    }
+    //悲观读数据
+    public void read() {
+        long l = stampedLock.readLock();
+        System.out.println("准备读取");
+        try {
+            for (int i = 0; i < 5; i++) {
+                try {
+                    Thread.sleep(4000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+            System.out.println("读取数据"+num);
+        } finally {
+            stampedLock.unlock(l);
+        }
+        System.out.println("结束读取");
+    }
+
+    //乐观读数据
+    public void tryOptimisticRead(){
+        long l = stampedLock.tryOptimisticRead();
+        int res;
+        //validate用来奇数据是不是被修改了
+        System.out.println("校验数据"+stampedLock.validate(l));
+
+        System.out.println("乐观读");
+        for (int i = 0; i < 4; i++) {
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        //如果有修改的，就转化为悲观读
+        if (!stampedLock.validate(l)) {
+            long l1 = stampedLock.readLock();
+            try {
+                Thread.sleep(100);
+                res=num;
+                System.out.println("悲观读取数据"+res);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }finally {
+                stampedLock.unlockRead(l1);
+            }
+        }
+    }
+    public static void main(String[] args) {
+        app88 app88 = new app88();
+        new Thread(app88::tryOptimisticRead).start();
+        new Thread(app88::write).start();
+    }
+}
+
+```
+
+* 缺点
+    * 不支持重入
+    * 悲观读锁不支持条件变量(condition)
+    * 使用stampedlock一定不要调用中断操作，即不要调用interrupt()方法
+
+
+
 
 
 
