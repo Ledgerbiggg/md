@@ -56,8 +56,49 @@
     * Keyword 类型不会分词直接根据字符串内容建立反向索引，
     * Text 类型在存入 Elasticsearch 的时候，会先分词，然后根据分词后的内容建立反向索引。
 
-## Kibana操作
+## Kibana操作 
+```sh
+# 检查健康状态 green为健康
+GET _cat/health 
 
+## 查看索引
+GET _cat/indices
+
+# 获取所有的索引的详细
+GET _all
+
+# 增加一个索引
+PUT ledger
+
+# 查看索引
+GET _cat/indices
+
+# 删除索引
+DELETE ledger
+
+
+# 查询
+GET /ledger/product/1
+
+# 修改
+PUT /ledger/product/1
+{
+  "name":"ledger1111",
+  "price":4441,
+  "tags":[154,1541]
+}
+# put全局修改,数据会丢失
+PUT /ledger/product/1
+{
+  "name":"ledger1111"
+}
+# post局部更新
+POST /ledger/product/1/_update
+{
+  "name":"ledger19999991"
+}
+
+```
 
 
 
