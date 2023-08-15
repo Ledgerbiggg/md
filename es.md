@@ -244,7 +244,6 @@ GET ledger/_search
     }
   }
 }
-
 ```
 
 
