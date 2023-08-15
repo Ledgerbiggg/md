@@ -229,8 +229,9 @@ GET ledger/_search
 }
 
 ```
-### 和query统计的属性
+### 和query同一级的属性
 ```json
+GET ledger/_search
 {
   "query":{
     "match_all": {}
@@ -245,7 +246,24 @@ GET ledger/_search
   }
 }
 ```
-
+### 分组
+```json
+GET ledger/_search
+{
+"query": {
+  "match": {
+    "name": "ledger"
+  }
+}, 
+"aggs": {
+  "group_by_category": {
+    "terms": {
+      "field": "price"
+    }
+  }
+}
+}
+```
 
 
 
