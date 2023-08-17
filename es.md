@@ -139,11 +139,11 @@ GET ledger/_search
   "_source": ["name","price"]
 }
 # bool合并多个布尔条件
-# {bool}>{must、match_phrase、filter、must_not、should}所有的结合
-    # [must_not]>{match、match_phrase、term、range、exists}必须不满足这个才给你放回
-    # [must]>{match、match_phrase、term、range、exists}必须满足这个才给你返回
-    # [should]>{match、match_phrase、term、range、exists}满足任意就可以，都不满足也会返回，但是分数降低
-    # {filter}>{term、range、exists}文档过滤，结果已经搜索出来了
+# {bool}>{must, match_phrase, filter, must_not, should}所有的结合
+    # [must_not]>{match, match_phrase, term, range, exists}必须不满足这个才给你放回
+    # [must]>{match, match_phrase, term, range, exists}必须满足这个才给你返回
+    # [should]>{match, match_phrase, term, range, exists}满足任意就可以，都不满足也会返回，但是分数降低
+    # {filter}>{term, range, exists}文档过滤，结果已经搜索出来了
     # {match_phrase}>字段  字段的短文匹配
     # {match}>字段名:值 字段的短文匹配
     # {term}>字段名:值 字段的精确匹配
