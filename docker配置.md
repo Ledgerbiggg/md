@@ -60,7 +60,9 @@ docker run --name elasticsearch --restart=always \
 
 * [github地址]: https://github.com/medcl/elasticsearch-analysis-ik/releases?q=7.&amp;expanded=true
 
-* tip：版本一定要和es的一致
+* tip：
+1. 版本一定要和es的一致
+2. 下载zip的文件,自己电脑上面解压,再上传到服务器
 
 * 自定义分词器
 
