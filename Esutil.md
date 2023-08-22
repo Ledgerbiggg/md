@@ -21,6 +21,13 @@
 
 ### es连接的配置
 ```java
+import org.apache.http.HttpHost;
+import org.elasticsearch.client.RestClient;
+import org.elasticsearch.client.RestClientBuilder;
+import org.elasticsearch.client.RestHighLevelClient;
+
+import java.io.IOException;
+
 public class ElasticSearchConnection {
     private volatile static RestHighLevelClient client;
 
@@ -50,6 +57,40 @@ public class ElasticSearchConnection {
 
 ### es工具类
 ```java
+import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.map.MapUtil;
+import com.alibaba.fastjson.JSON;
+import com.ledger.es_test1.connection.ElasticSearchConnection;
+import org.elasticsearch.action.ActionListener;
+import org.elasticsearch.action.admin.indices.delete.DeleteIndexRequest;
+import org.elasticsearch.action.bulk.BulkRequest;
+import org.elasticsearch.action.bulk.BulkResponse;
+import org.elasticsearch.action.delete.DeleteRequest;
+import org.elasticsearch.action.delete.DeleteResponse;
+import org.elasticsearch.action.index.IndexRequest;
+import org.elasticsearch.action.search.SearchRequest;
+import org.elasticsearch.action.search.SearchResponse;
+import org.elasticsearch.action.support.master.AcknowledgedResponse;
+import org.elasticsearch.action.update.UpdateRequest;
+import org.elasticsearch.action.update.UpdateResponse;
+import org.elasticsearch.client.RequestOptions;
+import org.elasticsearch.client.RestHighLevelClient;
+import org.elasticsearch.client.indices.CreateIndexRequest;
+import org.elasticsearch.client.indices.CreateIndexResponse;
+import org.elasticsearch.client.indices.GetIndexRequest;
+import org.elasticsearch.index.query.BoolQueryBuilder;
+import org.elasticsearch.index.query.QueryBuilders;
+import org.elasticsearch.rest.RestStatus;
+import org.elasticsearch.search.SearchHit;
+import org.elasticsearch.search.builder.SearchSourceBuilder;
+import org.elasticsearch.search.sort.SortBuilders;
+import org.elasticsearch.search.sort.SortOrder;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
 public class EsUtil {
     /**
      * 根据类型返回对应的list的封装类
@@ -61,7 +102,7 @@ public class EsUtil {
      * @param <T> 查询的泛型
      * @return 查询的泛型集合
      */
-    public static <T> List<T> SearchFromEs(String index, Class<T> type, Integer from, Integer size, Map<String, String> match) {
+    public static <T> List<T> SearchDocsFromEs(String index, Class<T> type, Integer from, Integer size, Map<String, String> match) {
         // 获取连接到 Elasticsearch 的客户端
         RestHighLevelClient client = ElasticSearchConnection.getClient();
         // 创建一个搜索请求，指定要搜索的索引
@@ -116,7 +157,7 @@ public class EsUtil {
      * @param entityList 数据集合
      * @param <T> 数据泛型
      */
-    public static <T> void insertIntoEs(String index, List<T> entityList){
+    public static <T> void insertDocsIntoEs(String index, List<T> entityList){
         GetIndexRequest getIndexRequest = new GetIndexRequest(index);
 
         RestHighLevelClient client = ElasticSearchConnection.getClient();
@@ -218,6 +259,45 @@ public class EsUtil {
         }
         ElasticSearchConnection.closeClient();
         return update.status()==RestStatus.OK?Boolean.TRUE:Boolean.FALSE;
+    }
+}
+    /**
+     * 删除索引的操作
+     *
+     * @param index 索引名称
+     * @return 删除的结果
+     */
+    public static Boolean deleteIndex(String index) {
+        RestHighLevelClient client = ElasticSearchConnection.getClient();
+        boolean acknowledged;
+        try {
+            AcknowledgedResponse delete = client.indices().delete(new DeleteIndexRequest(index), RequestOptions.DEFAULT);
+            acknowledged = delete.isAcknowledged();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("删除索引失败");
+        } finally {
+            ElasticSearchConnection.closeClient();
+        }
+        return acknowledged;
+    }
+    /**
+     * 创建索引的操作
+     * @param index 索引名称
+     * @return 创建的结果
+     */
+    public static Boolean createIndex(String index) {
+        RestHighLevelClient client = ElasticSearchConnection.getClient();
+        try {
+            CreateIndexRequest request = new CreateIndexRequest(index);
+            CreateIndexResponse response = client.indices().create(request, RequestOptions.DEFAULT);
+            return response.isAcknowledged();
+        } catch (IOException e) {
+            e.printStackTrace();
+            throw new RuntimeException("创建索引失败");
+        } finally {
+            ElasticSearchConnection.closeClient();
+        }
     }
 }
 ```
