@@ -497,7 +497,42 @@ public class MessageListenerConfig {
 }
 
 ```
+2. 手动确认消息
+    * 这个监听的类要实现ChannelAwareMessageListener接口
+    * 实现onMessage方法,里面有两个参数(Message,Channel),Message是消息主体,Channel是信道,用来给消息做确认或者拒绝的
+    * deliveryTag这个是消息的标签message.getMessageProperties().getDeliveryTag()获取
+    * basicAck(deliveryTag, true)第二个参数表示是否批量处理消息
+    * basicReject(deliveryTag, false)拒绝消息,第二个参数表示是否重新入队
+    * basicNack(deliveryTag, false,false)批量拒绝消息,第二个参数是表示是否重新入队,第三个参数是表示是否批量处理
 
+```java
+@Component
+public class TestGetRabbitmqMessage implements ChannelAwareMessageListener {
+
+    @Override
+    public void onMessage(Message message, Channel channel) throws Exception {
+        long deliveryTag = message.getMessageProperties().getDeliveryTag();
+
+        try {
+            byte[] body = message.getBody();
+            String str = new String(body);
+
+            Student student = JSON.parseObject(str, Student.class);
+
+            System.out.println("接受到数据onMessage" + student);
+
+            System.out.println("消息是来自" + message.getMessageProperties().getConsumerQueue());
+            assert channel != null;
+            channel.basicAck(deliveryTag, true);
+        } catch (Exception e) {
+            //根据标签来拒绝消息,第二个参数是是否重新进入队伍
+            channel.basicReject(deliveryTag, false);
+            throw new RuntimeException(e);
+        }
+    }
+}
+
+```
 
 
 
