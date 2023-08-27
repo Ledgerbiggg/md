@@ -129,32 +129,38 @@ docker exec -it <container_name> /bin/bash
 1. docker容器在默认情况下,一般会分配一个独立的network-namespace,也就是网络类型中的Bridge模式.
 * 在使用Bridge时就涉及到了一个问题,既然它有独立的namesapce,这就需要一种技术使容器内的端口可以在主机上访问到,这种技术就是端口映射,docker可以指定你想把容器内的某一个端口可以在容器所在主机上的某一个端口它俩之间做一个映射,当你在访问主机上的端口时,其实就是访问容器里面的端口.
 
-##  docker部署第一个java web应用
-1. 构建镜像(jar包,和dist文件)
-*  
-2. 编写dockerfile
-* 
-3. 构建容器
-* 
+##  docker部署第一个后台的应用程序
+1. 构建镜像(jar包)
+*  后台应用打包好jar包
 
+2. 编写Dockerfile
+* touch Dockerfile
 
-# 使用基础的 Java 镜像 FROM openjdk:11-jre-slim 
+```sh
 # 复制 JAR 文件到容器中 
-COPY your-app.jar /app/your-app.jar 
+COPY app.jar /app/app.jar 
+# 复制 配置文件到容器中
+COPY application.yml /app/application.yml
 # 设置工作目录 
 WORKDIR /app 
-# 安装 
-Nginx RUN apt-get update && apt-get install -y nginx 
-# 移除默认 Nginx 配置 
-RUN rm -f /etc/nginx/sites-available/default /etc/nginx/sites-enabled/default 
-# 复制 Vue 打包后的 dist 文件夹到 Nginx 静态文件目录 
-COPY dist /var/www/html 
-# 复制自定义的 Nginx 配置文件 
-COPY nginx.conf /etc/nginx/nginx.conf 
-# 启动 Java 应用程序和 Nginx
-CMD ["bash", "-c", "java -jar your-app.jar & nginx -g 'daemon off;'"] 
+# 启动 Java 应用程序
+CMD ["bash", "-c", "java -jar app.jar"] 
+```
+3. 构建容器
+```sh
+docker build -t app:1.0 .
+```
+5. 运行容器
+```sh
+docker run -d --name app -p 9999:9999 app:1.0
+```
 
-这里RUN apt-get update && apt-get install -y nginx这个安装是安装在服务器还是在容器内部
+
+
+
+
+
+
 
 
 

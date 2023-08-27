@@ -318,6 +318,56 @@ docker  run \
 -v /data/nacos/init.d/custom.properties:/home/nacos/init.d/custom.properties \
 nacos/nacos-server
 ```
+
+# ngnix
+1. 拉区镜像
+```sh
+docker pull nginx
+```
+2. 编写ngnix.config
+```sh
+mkdir /data/nginx
+touch ngnix.conf
+```
+* 内容
+```conf
+server {
+    listen 80;
+    server_name localhost;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+    }
+}
+```
+3. 文件权限设置
+```sh
+chmod 777 -R /home/ubuntu/font/dist/
+```
+4. 启动并挂卷
+```sh
+docker run -d -p 80:80 --name nginx -v /home/ubuntu/font/dist/:/usr/share/nginx/html nginx
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # 内网穿透
 ## 服务端
 * 配置文件
