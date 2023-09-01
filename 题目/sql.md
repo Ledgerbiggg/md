@@ -207,10 +207,122 @@ AND q1.device_id=q2.device_id) t
 2. 使用-1就是从后往前获取
 3. 根据,分割字符串获取
 
+## 统计复旦用户8月练题情况
+* Q:现在运营想要了解复旦大学的每个用户在8月份练习的总题目数和回答正确的题目数情况，请取出相应明细数据，对于在8月份没有练习过的用户，答题数结果返回0.
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/20230901223851.png)
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/20230901224000.png)
+1. 解题思路
+* 子查询
+```sql
+SELECT u.device_id,university,result
+FROM user_profile u
+LEFT JOIN question_practice_detail q
+ON
+u.device_id=q.device_id
+WHERE result IS NOT NULL
+AND university="复旦大学"
+```
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/20230901224124.png)
+2. 在这个基础上面,查询每个复旦大学的设备的答题总数和答对的数量
+* 使用COUNT(*)查询所有的答题数量
+* 使用CASE来将result="right"设置成为1,其他的设置成为null,这样COUNT()就只会统计right的数量
+```sql
+COUNT(
+CASE 
+	WHEN
+		result="right"   
+	THEN
+		1
+	ELSE
+		NULL
+END)
+```
+
+```sql
+SELECT 
+device_id,
+university,
+COUNT(*),
+COUNT(
+CASE 
+	WHEN
+		result="right"   
+	THEN
+		1
+	ELSE
+		NULL
+END)
+FROM 
+(
+SELECT u.device_id,university,result
+FROM user_profile u
+LEFT JOIN question_practice_detail q
+ON
+u.device_id=q.device_id
+WHERE result IS NOT NULL
+AND university="复旦大学"
+) t
+GROUP BY device_id,university
+```
+* 总结
+1. 先关联所有的数据,查询出来一个表格
+2. 根据合适的条件分组
+3. 统计个数的时候,使用case将值改变,之后就可以数特定的值的个数
 
 
+## 查找后降序排列
+* Q:现在运营想要取出用户信息表中对应的数据，并先按照gpa、年龄降序排序输出，请取出相应数据。
 
 
+* 思路
+1. 子查询
+```sql
+SELECT q.device_id,university,difficult_level,result
+FROM user_profile u
+LEFT JOIN question_practice_detail q
+ON u.device_id=q.device_id
+LEFT JOIN question_detail r
+ON q.question_id=r.question_id
+WHERE university="浙江大学"
+AND difficult_level IS NOT NULL
+```
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/20230901232202.png)
+
+2. 使用CASE来判断分子的个数
+3. 使用CASE在ORDER BY 中自定义排序
+```sql
+SELECT difficult_level,
+COUNT(
+CASE 
+	WHEN
+    result="right"
+	THEN
+		1
+	ELSE
+		NULL
+END 
+) /COUNT(*)
+FROM 
+(
+SELECT q.device_id,university,difficult_level,result
+FROM user_profile u
+LEFT JOIN question_practice_detail q
+ON u.device_id=q.device_id
+LEFT JOIN question_detail r
+ON q.question_id=r.question_id
+WHERE university="浙江大学"
+AND difficult_level IS NOT NULL
+) t
+GROUP BY difficult_level
+ORDER BY 
+(
+CASE 
+	WHEN difficult_level="easy" THEN 1
+	WHEN difficult_level="medium" THEN 2
+	WHEN difficult_level="hard" THEN 3
+END
+)
+```
 
 
 
