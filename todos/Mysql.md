@@ -214,15 +214,86 @@ NULL 相关函数：
 IS NULL: 判断是否为 NULL。
 COALESCE(): 返回第一个非 NULL 值。
 ```
-## 小挑战
+## 合并或者取交集
+1. UNION: 已经提到过的关键字，用于合并两个或多个查询的结果集，并去除重复的行。
 
+2. UNION ALL: 类似于UNION，但不会去除重复的行，它会将所有行都包含在结果集中。
 
+3. INTERSECT: 用于获取同时存在于两个查询结果集中的行，类似于取交集。与UNION不同，INTERSECT不会去除重复的行。
 
+4. EXCEPT / MINUS: 用于从第一个查询结果集中减去在第二个查询结果集中出现的行，类似于差集操作。在不同的数据库系统中，可能会使用EXCEPT或MINUS来表示这个操作。
 
+## 日期函数
+* CURRENT_DATE(): 返回当前日期（不包括时间）。
 
+* CURRENT_TIME(): 返回当前时间（不包括日期）。
 
+* CURRENT_TIMESTAMP() 或 NOW(): 返回当前日期和时间。
 
+* DAY(date),MONTH(date),YEAR(date): 返回日,月,年
 
+## 文本函数
+SQL提供了一系列常用的文本函数，用于处理文本数据。这些函数可以用于搜索、提取、转换和操作文本字符串。以下是一些常见的SQL文本函数：
+
+1. **CONCAT(str1, str2, ...)**：将多个文本字符串连接成一个字符串。
+
+   ```sql
+   CONCAT(first_name, ' ', last_name) AS full_name
+   ```
+
+2. **LENGTH(str)** 或 **LEN(str)**：返回文本字符串的长度。
+
+   ```sql
+   LENGTH(description) AS description_length
+   ```
+
+3. **UPPER(str)**：将文本字符串转换为大写。
+
+   ```sql
+   UPPER(city) AS upper_city
+   ```
+
+4. **LOWER(str)**：将文本字符串转换为小写。
+
+   ```sql
+   LOWER(username) AS lower_username
+   ```
+
+5. **SUBSTRING(str, start, length)** 或 **SUBSTR(str, start, length)**：从文本字符串中提取子字符串。
+
+   ```sql
+   SUBSTRING(title, 1, 5) AS first_five_chars
+   ```
+
+6. **TRIM([LEADING | TRAILING | BOTH] trim_character FROM str)**：去除文本字符串两端的空格或指定字符。
+
+   ```sql
+   TRIM(' ' FROM product_name) AS trimmed_name
+   ```
+
+7. **LEFT(str, length)**：从文本字符串的左侧提取指定长度的字符。
+
+   ```sql
+   LEFT(description, 50) AS left_description
+   ```
+
+8. **RIGHT(str, length)**：从文本字符串的右侧提取指定长度的字符。
+
+   ```sql
+   RIGHT(phone_number, 4) AS last_four_digits
+   ```
+
+9. **CHAR_LENGTH(str)** 或 **CHARACTER_LENGTH(str)**：返回文本字符串的字符数，考虑多字节字符。
+
+   ```sql
+   CHAR_LENGTH(text_content) AS char_count
+   ```
+
+10. **REPLACE(str, search, replace)**：将文本字符串中的所有匹配项替换为指定的新字符串。
+
+    ```sql
+    REPLACE(comment, 'bad', 'good') AS corrected_comment
+    ```
 
 
 
