@@ -25,7 +25,7 @@ git pull origin main --allow-unrelated-histories
 ```
 7. 拉取
 ```sh
-
+git pull
 ```
 
 
