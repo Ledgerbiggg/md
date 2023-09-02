@@ -318,6 +318,7 @@ public class TestProductApplication {
         cluster-name: HZ # 集群名称是杭州
         namespace: 15792aaa-bb43-4309-bdf0-6850bdca8183 # nacos命名空间
         ephemeral: false # 是否是临时的
+        
 ```
 
 2. nacos服务器就会主动询问定时非临时的服务器的健康状态
@@ -326,6 +327,7 @@ public class TestProductApplication {
    * 服务消费者会有一个注册信息的缓存，避免每次都会向注册中心拉取消息
    * 消费者定时拉取nacos注册中心的注册信息
    * 当注册中心有信息变更或者服务健康状态变换，nacos会直接向服务消费者推送信息，确保消息的时效性
+  
 
 
 
