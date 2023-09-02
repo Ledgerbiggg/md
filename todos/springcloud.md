@@ -318,7 +318,7 @@ public class TestProductApplication {
         cluster-name: HZ # 集群名称是杭州
         namespace: 15792aaa-bb43-4309-bdf0-6850bdca8183 # nacos命名空间
         ephemeral: false # 是否是临时的
-        
+
 ```
 
 2. nacos服务器就会主动询问定时非临时的服务器的健康状态
@@ -328,6 +328,222 @@ public class TestProductApplication {
    * 消费者定时拉取nacos注册中心的注册信息
    * 当注册中心有信息变更或者服务健康状态变换，nacos会直接向服务消费者推送信息，确保消息的时效性
   
+## Nacos配置管理
+1. 引入依赖
+```xml
+        <dependency>
+            <groupId>com.alibaba.cloud</groupId>
+            <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
+        </dependency>
+```
+2. 配置**bootstrap.yml**
+* 配置地址  spring.cloud.nacos.server-addr: 106.54.9.19:8848 
+* 文件名后缀    spring.cloud.config.file-extension: yaml
+* 命名空间  spring.cloud.config.namespace: 85e7bf18-84c9-42e9-a5f6-46de7fec3215
+* 配置环境  spring.
+* 远程nacos中的配置中心的命名(85e7bf18-84c9-42e9-a5f6-46de7fec3215)空间下面的文件是
+    * {服务名称}-{环境名称}.{后缀名称}
+```yml
+spring:
+  application:
+    # 服务名称
+    name: test-product
+  profiles:
+    # 环境
+    active: dev
+  cloud:
+    nacos:
+      server-addr: 106.54.9.19:8848
+      # nacos地址
+      discovery:
+        # 集群位置
+        cluster-name: NB
+        # 命名空间
+        namespace: 85e7bf18-84c9-42e9-a5f6-46de7fec3215
+      config:
+        # 文件后缀
+        file-extension: yaml
+        # nacos命名空间(得看你配置文件里面有没有设置命名空间)
+        namespace: 85e7bf18-84c9-42e9-a5f6-46de7fec3215
+```
+3. **@RefreshScope注解**
+* 这个注解加在使用变量的类上面
+* 如果是修改数据源配置等会影响spring容器里面的Bean的配置,建议使用主动配置数据源的操作
+```java
+@RestController
+@RefreshScope
+public class ProductController {
+
+    @Value("${ledger}")
+    private String ledger;
+
+    //配置降级方法
+    @HystrixCommand(
+            fallbackMethod = "timeOutInvoke",
+            commandProperties = {
+            //设置服务调用超时10秒时触发服务降级
+            @HystrixProperty(name="execution.isolation.thread.timeoutInMilliseconds",value = "10000")
+    })
+    @GetMapping("/hello")
+    public String invoke(){
+        return ledger;
+    }
+
+    public String timeOutInvoke() {
+        return "系统繁忙，请稍后再试";
+    }
+}
+```
+## 多环境配置共享
+* 微服务启动时会从nacos读取多个配置文件：
+  * [spring.application.name]-[spring.profiles.active].yaml，例如：userservice-dev.yaml
+  * [spring.application.name].yaml，例如：userservice.yaml
+
+* 无论profile如何变化，[spring.application.name].yaml这个文件一定会加载，因此多环境共享配置可以写入这个文件
+
+* 当本地配置文件和远程配置文件有共用的配置属性的话，默认先使用远程的配置文件,远程配置文件，环境配置的优先级最高
+
+![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202306091702542.png)
+
+
+## openFeign客户端依赖(简化发送请求的过程)
+1. 导入Feign客户端依赖
+```xml
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-starter-openfeign</artifactId>
+        </dependency>
+```
+2. 配置注解在启动类上面TestProductApplication
+```java
+@EnableFeignClients
+public class TestProductApplication {
+    public static void main(String[] args) {
+        SpringApplication.run(TestProductApplication.class, args);
+    }
+}
+```
+2. 配置一个userservice的发送请求的接口
+```java
+@FeignClient(value = "test-user")
+public interface userService {
+    @GetMapping("/getUser")
+    List<User> getUser();
+}
+```
+3. 配置bean
+```java
+@Data
+@TableName("spring_cloud_test")
+public class User {
+    @TableId
+    private String id;
+    private String userName;
+    private int age;
+    private boolean gender;
+}
+```
+4. controller
+```java
+@RestController
+@RefreshScope
+@Slf4j
+public class ProductController {
+
+    @Value("${ledger}")
+    private String ledger;
+    @Resource
+    private userService userService;
+
+    //配置降级方法
+    @HystrixCommand(
+            fallbackMethod = "timeOutInvoke",
+            commandProperties = {
+            //设置服务调用超时10秒时触发服务降级
+            @HystrixProperty(name="execution.isolation.thread.timeoutInMilliseconds",value = "10000")
+    })
+    @GetMapping("/hello")
+    public String invoke(){
+        List<User> user = userService.getUser();
+        return user.toString();
+    }
+
+    public String timeOutInvoke() {
+        return "系统繁忙，请稍后再试";
+    }
+}
+```
+## 自定义Feign的配置
+
+* Feign运行自定义配置来覆盖默认配置，可以修改的配置如下
+
+| 类型                | 作用             | 说明                                                   |
+| ------------------- | ---------------- | ------------------------------------------------------ |
+| feign.Logger.Level  | 修改日志级别     | 包含四种不同的级别：NONE、BASIC、HEADERS、FULL         |
+| feign.codec.Decoder | 响应结果的解析器 | http远程调用的结果做解析，例如解析json字符串为java对象 |
+| feign.codec.Encoder | 请求参数编码     | 将请求参数编码，便于通过http请求发送                   |
+| feign. Contract     | 支持的注解格式   | 默认是SpringMVC的注解                                  |
+| feign. Retryer      | 失败重试机制     | 请求失败的重试机制，默认是没有，不过会使用Ribbon的重试 |
+
+* 配置日志等级
+
+1. 第一种方法(配置文件直接写配置)
+
+```yml
+feign:
+  client:
+    config:
+      default: # default表示全局的配置，可以写成单个服务
+        loggerLevel: FULL
+```
+
+2. 第二种方法(使用java配置类)
+
+   1. 先写配置类
+
+      ```java
+      public class DefaultFeignConfiguration {
+          @Bean
+          public Logger.Level logLevel() {
+              return Logger.Level.BASIC;
+          }
+      }
+      ```
+
+   2. 启动类增加配置
+
+      ```java
+          @MapperScan("com.ledger.mapper")
+          @SpringBootApplication
+          @EnableFeignClients(defaultConfiguration = DefaultFeignConfiguration.class)//表示全局的配置
+          public class OrderServiceApplication {
+          
+              public static void main(String[] args) {
+                  SpringApplication.run(com.ledger.OrderServiceApplication.class, args);
+              }
+      
+              @Bean
+              @LoadBalanced
+              public RestTemplate restTemplate() {
+                  //发送请求的模板
+                  return new RestTemplate();
+              }
+      }
+      ```
+
+### 总结
+
+* Feign的日志配置:
+
+1. 方式一是配置文件，feign.client.config.xxx.loggerLevel
+   * 如果xxx是default则代表全局
+   * 如果xxx是服务名称，例如userservice则代表某服务
+2. 方式二是java代码配置Logger.Level这个Bean
+   * 如果在@EnableFeignClients注解声明则代表全局
+   * 如果在@FeignClient注解中声明则代表某服务
+
+
+
 
 
 

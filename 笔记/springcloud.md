@@ -446,7 +446,7 @@ clients: userservice # 指定对userservice这个服务饥饿加载
 ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/202306091539390.png)
     1. 引入Nacos的配置管理客户端依赖:
 ```xml
-           <dependency>
+        <dependency>
             <groupId>com.alibaba.cloud</groupId>
             <artifactId>spring-cloud-starter-alibaba-nacos-config</artifactId>
         </dependency>
@@ -454,7 +454,7 @@ clients: userservice # 指定对userservice这个服务饥饿加载
     2. 在userservice里面添加一个bootstrap.yml文件，这个文件是引导文件，优先级高于application.xml:
 
 ```yml
-    spring:
+spring:
   application:
     name: userservice
   profiles:
@@ -652,7 +652,7 @@ feign:
 ### 使用HttpClient示例
 1. 引入依赖
 ```xml
-         <dependency>
+        <dependency>
             <groupId>io.github.openfeign</groupId>
             <artifactId>feign-httpclient</artifactId>
         </dependency>
@@ -1207,12 +1207,13 @@ ENTRYPOINT | 镜像中应用的启动命令，容器运行时调用 | ENTRYPOINT
 
 * tips：可以使用别人已经构建好的基础镜像来构建自己的镜像
 如下的dockerfile文件
+  
     ```sh
     # 指定基础镜像
     # FROM ubuntu:16.04
     # # 配置环境变量，JDK的安装目录
-    # ENV JAVA_DIR=/usr/local
-
+  # ENV JAVA_DIR=/usr/local
+  
     # # 拷贝jdk和java项目的包
     # COPY ./jdk8.tar.gz $JAVA_DIR/
     ```
