@@ -161,14 +161,12 @@ docker run  -p 3306:3306 \
 
 ```sh
 docker exec -it mysql bash
-
 ```
 
 * 操作
 
-```SH
+```sh
 mysql -u root -p123456
-
 ```
 
 * 改密码

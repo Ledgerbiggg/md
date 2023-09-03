@@ -10,12 +10,12 @@
 
 **TODOS**
 ## 下一周的计划
-* 复习springcloud
-* 复习feigin
-* 复习nacos
+* ~~复习springcloud~~
+* ~~复习feigin~~
+* ~~复习nacos~~
 * 完善网站,增加功能,最好实现springsecurity的单点登录(先不做)
 * 想使用echart技术来讲网站用户学习时长进行统计,可视化数据(先不做)
-* 数据库三大范式
+* ~~数据库三大范式~~
 * ~~数据库难点过一遍~~
 * java对象和属性的内存
 * jvm难点再看看
