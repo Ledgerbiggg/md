@@ -9,7 +9,7 @@ git add .
 ```
 3. 提交到本地仓库
 ```sh
-git commit -m "init project"
+    git commit -m "init project"
 ```
 4. 绑定远程分支
 ```sh
@@ -23,11 +23,18 @@ git branch -m master main
 ```sh
 git pull origin main --allow-unrelated-histories
 ```
-7. 拉取
+7. 设置分支的对应关系
+```sh
+git branch --set-upstream-to=origin/main main
+```
+8. 拉取
 ```sh
 git pull
 ```
-
+9. 推送
+```sh
+git push
+```
 
 
 

@@ -697,7 +697,7 @@ feign:
         ```
     2. 方式二：指定FeignClient字节码
         ```java
-            @EnableFeignClients(basePackages = "cn.itcast.feign.clients")
+            @EnableFeignClients(clients = UserClient.class)
         ```
 ## 同一网关Gateway
 ###  为什么需要网关

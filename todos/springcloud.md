@@ -482,8 +482,8 @@ public class ProductController {
 | feign.Logger.Level  | 修改日志级别     | 包含四种不同的级别：NONE、BASIC、HEADERS、FULL         |
 | feign.codec.Decoder | 响应结果的解析器 | http远程调用的结果做解析，例如解析json字符串为java对象 |
 | feign.codec.Encoder | 请求参数编码     | 将请求参数编码，便于通过http请求发送                   |
-| feign. Contract     | 支持的注解格式   | 默认是SpringMVC的注解                                  |
-| feign. Retryer      | 失败重试机制     | 请求失败的重试机制，默认是没有，不过会使用Ribbon的重试 |
+| feign.contract     | 支持的注解格式   | 默认是SpringMVC的注解                                  |
+| feign.retryer      | 失败重试机制     | 请求失败的重试机制，默认是没有，不过会使用Ribbon的重试 |
 
 * 配置日志等级
 
@@ -541,6 +541,269 @@ feign:
 2. 方式二是java代码配置Logger.Level这个Bean
    * 如果在@EnableFeignClients注解声明则代表全局
    * 如果在@FeignClient注解中声明则代表某服务
+
+## ribbon
+* 配置负载均衡选项
+```java
+    @Bean
+    @LoadBalanced
+    public RestTemplate restTemplate(){
+        return new RestTemplate();
+    }
+    
+    @Bean
+    public IRule ribbonRule(){
+        //默认轮询
+        RoundRobinRule roundRobinRule = new RoundRobinRule();
+        //随机询问
+        RandomRule randomRule = new RandomRule();
+        //轮询+重试
+        RetryRule retryRule = new RetryRule();
+        //根据相应时间来判断权重
+        WeightedResponseTimeRule weightedResponseTimeRule = new WeightedResponseTimeRule();
+        //区域内轮询
+        ZoneAvoidanceRule zoneAvoidanceRule = new ZoneAvoidanceRule();
+        //选择最低并发实例
+        BestAvailableRule bestAvailableRule = new BestAvailableRule();
+        //排除故障和超时的实例
+        AvailabilityFilteringRule availabilityFilteringRule = new AvailabilityFilteringRule();
+        return randomRule;
+    }
+```
+* 配置之后就会默认出来一个支持负载均衡的RestTemplate
+
+## Feign的性能优化
+### Feign底层的客户端实现：
+* URLConnection：默认实现，不支持连接池
+* Apache HttpClient ：支持连接池
+* OKHttp：支持连接池
+
+### 因此优化Feign的性能主要包括：
+
+* 使用连接池代替默认的URLConnection
+* 日志级别，最好用basic或none
+
+### 使用Apache HttpClient
+1. 引入依赖
+```xml
+        <dependency>
+            <groupId>io.github.openfeign</groupId>
+            <artifactId>feign-httpclient</artifactId>
+        </dependency>
+```
+2. 配置连接池
+```yml
+feign:
+  client:
+    config:
+      default: # default表示全局的配置，可以写成单个服务
+        loggerLevel: BASIC
+        connect-timeout: 5000 # 连接超时时间
+        read-timeout: 5000 # 读取超时时间
+  httpclient:
+    enabled: true # 开启连接池
+    max-connections: 200 # 最大连接池数量
+```
+### 总结
+* Feign的优化：
+  1. 日志级别尽量用basic
+  2. 使用HttpClient或OKHttp代替URLConnection
+     * 引入feign-httpClient依赖
+     * 配置文件开启httpClient功能，设置连接池参数
+
+## Feign的最佳实践!!!!
+* 实现最佳实践的步骤如下：
+  1. 首先创建一个module，命名为feign-api，然后引入feign的starter依赖
+  2. 将order-service中编写的UserClient、User、DefaultFeignConfiguration都复制到feign-api项目中
+  ![](https://image-bed-for-ledgerhhh.oss-cn-beijing.aliyuncs.com/image/20230903105625.png)
+  3. 在order-service中引入feign-api的依赖!!!!
+  ```xml
+          <dependency>
+            <groupId>com.ledger</groupId>
+            <artifactId>test-feign-api</artifactId>
+            <version>0.0.1-SNAPSHOT</version>
+        </dependency>
+  ```
+  4. 包扫描
+  ```java
+    @EnableDiscoveryClient
+    @EnableHystrix
+    @SpringBootApplication
+    //扫描feign的客户端在的位置
+    @EnableFeignClients(basePackages = "com.ledger.testfeignapi.client")
+    //扫描domain包和DefaultFeignConfiguration(feign配置类)所在的位置
+    @ComponentScan(basePackages = {"com.ledger.testproduct","com.ledger.testfeignapi"})
+    public class TestProductApplication {
+        public static void main(String[] args) {
+            SpringApplication.run(TestProductApplication.class, args);
+        }
+    }
+  ```
+## 统一网关Gateway
+###  为什么需要网关
+
+1. 网关功能
+   * 身份认证和权限校验
+   * 服务路由、负载均衡
+   * 请求限流
+
+### 搭建网关的服务
+
+1. 创建新的module，引入网关依赖
+* 这个依赖会和web冲突,父类不要给这个gateway模块增加web依赖
+```xml
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-starter-gateway</artifactId>
+            </dependency>
+```
+2. 配置nacos地址
+```yml
+server:
+  port: 11000
+
+spring:
+  application:
+    # 服务名称
+    name: test-gateway
+  profiles:
+    # 环境
+    active: dev
+  cloud:
+    nacos:
+      # nacos地址
+      server-addr: 106.54.9.19:8848
+      discovery:
+        # 集群位置
+        cluster-name: NB
+        # 命名空间
+        namespace: 85e7bf18-84c9-42e9-a5f6-46de7fec3215
+      config:
+        # 文件后缀
+        file-extension: yaml
+        # nacos命名空间(得看你配置文件里面有没有设置命名空间)
+        namespace: 85e7bf18-84c9-42e9-a5f6-46de7fec3215
+```
+3. 配置网关
+```yml
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+     routes:
+      - id: user-service
+        uri: lb://test-user # 路由的目标地址 http就是固定地址
+        predicates:
+          - Path=/user/** # 这个是匹配规则，只要以/user/开头就会符合要求
+      - id: product-service
+        uri: lb://test-product # 路由的目标地址 http就是固定地址 lb是负载均衡 test-product是服务地址
+        predicates:
+          - Path=/product/** # 这个是匹配规则，只要以/user/开头就会符合要求
+```
+## 路由断言工厂
+
+### 网关路由可以配置的内容包括：
+
+* 路由id：路由唯一标示
+* uri：路由目的地，支持lb和http两种
+* predicates：路由断言，判断请求是否符合要求，符合则转发到路由目的地
+* filters：路由过滤器，处理请求或响应
+
+## 路由断言工厂
+### 网关路由可以配置的内容包括：
+
+* id：路由唯一标示
+* uri：路由目的地，支持lb和http两种
+* predicates：路由断言，判断请求是否符合要求，符合则转发到路由目的地
+* filters：路由过滤器，处理请求或响应
+
+## 路由器的执行顺序
+* 每一个过滤器都必须指定一个int类型的order值，order值越小，优先级越高，执行顺序越靠前。
+* GlobalFilter通过实现Ordered接口，或者添加@Order注解来指定order值，由我们自己指定
+* 路由过滤器和defaultFilter的order由Spring指定，默认是按照声明顺序从1递增。
+* 当过滤器的order值一样时，会按照 defaultFilter > 路由过滤器 > GlobalFilter的顺序执行。
+
+## 跨域问题处理
+* 跨域问题：浏览器禁止请求的发起者与服务端发生跨域ajax请求，请求被浏览器拦截的问题
+* 解决方案：CORS
+```yml
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      globalcors:
+        add-to-simple-url-handler-mapping: true # 解决options请求被拦截问题
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins: # 允许哪些网站的跨域请求
+              - "*" # 允许所有
+            allowedMethods: # 允许的跨域ajax的请求方式
+              - "GET"
+              - "POST"
+              - "DELETE"
+              - "PUT"
+              - "OPTIONS"
+            allowedHeaders: "*" # 允许在请求中携带的头信息
+            allowCredentials: true # 是否允许携带cookie
+            maxAge: 360000 # 这次跨域检测的有效期
+      routes:
+      - id: user-service
+        uri: lb://test-user # 路由的目标地址 http就是固定地址
+        predicates:
+          - Path=/api/user/** # 这个是匹配规则，只要以/user/开头就会符合要求
+      - id: product-service
+        uri: lb://test-product # 路由的目标地址 http就是固定地址
+        predicates:
+          - Path=/api/product/** # 这个是匹配规则，只要以/user/开头就会符合要求
+      default-filters:
+        - RewritePath=/api/(?<segment>.*), /$\{segment} # 默认的过滤器,将所有的请求的/api去掉
+```
+### 总结
+
+* CORS跨域要配置的参数包括哪几个？
+    * 允许哪些域名跨域？
+    * 允许哪些请求头？
+    * 允许哪些请求方式？
+    * 是否允许使用cookie？
+    * 有效期是多久？
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
