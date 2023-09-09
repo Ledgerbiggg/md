@@ -157,8 +157,16 @@ services:
     volumes:
       - ./application.yml:/app/application.yml:ro  # 映射 Java 应用程序配置文件
     container_name: english
-    
 ```
+3. 启动
+```sh
+docker-compose up -d
+```
+4. 关闭
+```sh
+docker-compose down
+```
+
 
 
 
