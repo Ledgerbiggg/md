@@ -1,4 +1,6 @@
-## springsecurity的使用
+# springsecurity的使用
+
+## 后端
 1. 引入依赖
 ```xml
         <!-- 这个是security -->
@@ -66,7 +68,10 @@ public class WebSecurityConfig {
                 .and()
                 // 配置HTTP响应头部，包括缓存控制(禁用缓存)
                 .headers()
-                .disable();
+                .disable()
+                //禁用session 的记住用户的功能
+                .sessionManagement()
+                .sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 
         // 配置异常处理 - 设置身份验证入口点 (AuthenticationEntryPoint)
         httpSecurity
@@ -468,7 +473,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements Us
         SecurityUser securityUser = new SecurityUser(userByUsername);
         String token = JwtUtil.createJwt(securityUser, secret);
         response.setHeader("Authorization", tokenHead + " " + token);
-        return Result.success("登录成功", token);
+        return Result.success("登录成功");
     }
 
     @Override
@@ -553,13 +558,365 @@ public class SecurityUser implements UserDetails {
 ```
 
 ## 前端部分
+* 登录页面
+```html
+  <div class="body">
+    <div class="loginBox">
+      <h2>login</h2>
+      <div>
+        <div class="item">
+          <input type="text" required v-model="user.username">
+          <label for="">userName</label>
+        </div>
+        <div class="item">
+          <input type="password" required v-model="user.password">
+          <label for="">password</label>
+        </div>
+        <div class="item">
+          <input type="text" required v-model="user.captcha">
+          <label for="">captcha</label>
+        </div>
+        <img class="captcha" src="/api/captcha" @click="getCaptcha" ref="captcha">
+        <button class="btn" @click="submit">submit
+          <span></span>
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
+    </div>
+  </div>
+```
+```js
+import http from "@/js/http";
 
+export default {
+  name: "Login",
+  data() {
+    return {
+      user: {
+        username: "",
+        password: "",
+        captcha: ""
+      },
+    }
+  },
+  mounted() {
+    this.getCaptcha()
+  },
+  methods: {
+    getCaptcha() {
+        //获取验证码(image流直接渲染,配置了代理,直接向本地请求)
+      this.$refs.captcha.src = '/api/captcha?' + Math.random()
+    },
+    submit() {
+      http.post(`/login?code=${this.user.captcha}`, this.user).then(res => {
+        console.log("/login", res)
+        if (res.data.code === 200) {
+            //登录成功就跳转
+          this.$router.push("/main")
+        }
+      }).catch(rea => {
+        console.error("rea.data", rea.data)
+        this.getCaptcha()
+      })
+    }
+  }
+}
+```
+* vue.config
+```js
+const { defineConfig } = require('@vue/cli-service')
 
+module.exports = defineConfig({
+  devServer: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:9999', // 设置你的后端服务器地址
+        changeOrigin: true, // 允许跨域
+        pathRewrite: {
+          '^/api': '/' // 如果后端接口没有以 '/api' 开头，可以去掉这一行
+        }
+      }
+    }
+  },
+  transpileDependencies: true,
+  lintOnSave: false
+})
 
+```
+* 响应拦截器
+```js
 
+// 3.响应拦截器
+****   request.js   ****/
+// 导入axios
+import axios from 'axios'
+// 使用element-ui Message做消息提醒
+import {Message} from 'element-ui';
+// import router from "@/js/router";
 
+//1. 创建新的axios实例，
+const service = axios.create({
+    baseURL: "http://localhost:8080/api",
+    // baseURL: "http://ledger-code.buzz:9999",
+    // baseURL: "http://ledgerhhh-ai.top:8080",
+    // baseURL: "http://ledgerhhh-ai.top:8080",
+    // 超时时间 单位是ms，这里设置了3s的超时时间
+    timeout: 9 * 10000,
+})
+// 2.请求拦截器
+service.interceptors.request.use(config => {
 
+    //发请求前做的一些处理，数据转化，配置请求头，设置token,设置loading等，根据需求去添加
+    config.data = JSON.stringify(config.data); //数据转化,也可以使用qs转换
+    config.headers = {
+        'Content-Type': 'application/json' //配置请求头
+    }
+    //如有需要：注意使用token的时候需要引入cookie方法或者用本地localStorage等方法，推荐js-cookie
+    //const token = getCookie('名称');//这里取token之前，你肯定需要先拿到token,存一下
+    // if(token){
+    // config.params = {'token':token} //如果要求携带在参数中
+    // config.headers.token= token; //如果要求携带在请求头中
+    // }
+    const token = window.localStorage.getItem('token');
+    if (token) {
+        // config.params = {'token':token} //如果要求携带在参数中
+        config.headers.Authorization = token;
+    }
+    return config
+}, error => {
+    Promise.reject(error)
+})
 
+// 3.响应拦截器
+service.interceptors.response.use(response => {
+    //接收到响应数据并成功后的一些共有的处理，关闭loading等
+    let token = response.headers.get('Authorization');
+    if (token) {
+        //获取token,刷新unexpired过期时间
+        window.localStorage.setItem('token', token);
+        window.localStorage.setItem('unexpired', 'ledger');
+    }
+    if (response.data.code === 403 ) {
+        //未登录就去掉刷新
+        window.localStorage.removeItem("unexpired")
+        Message.error(response.data.msg)
+        return Promise.reject(response);
+    }
+    if(response.data.code === 401){
+        //没有权限
+        Message.error(response.data.msg)
+        return Promise.reject(response);
+    }
+    return response
+}, error => {
+    /***** 接收到异常响应的处理开始 *****/
+    if (error && error.response) {
+        // 1.公共错误处理
+        // 2.根据响应码具体处理
+        switch (error.response.status) {
+            case 400:
+                error.message = '错误请求'
+                break;
+            case 401:
+                error.message = '未授权，请重新登录'
+                break;
+            case 403:
+                error.message = '拒绝访问'
+                break;
+            case 404:
+                error.message = '请求错误,未找到该资源'
+                // window.location.href = "/NotFound"
+                break;
+            case 405:
+                error.message = '请求方法未允许'
+                break;
+            case 408:
+                error.message = '请求超时'
+                break;
+            case 500:
+                error.message = '服务器端出错'
+                break;
+            case 501:
+                error.message = '网络未实现'
+                break;
+            case 502:
+                error.message = '网络错误'
+                break;
+            case 503:
+                error.message = '服务不可用'
+                break;
+            case 504:
+                error.message = '网络超时'
+                break;
+            case 505:
+                error.message = 'http版本不支持该请求'
+                break;
+            default:
+                error.message = `连接错误${error.response.status}`
+        }
+    } else {
+        // 超时处理
+        if (JSON.stringify(error).includes('timeout')) {
+            Message.error('服务器响应超时，请刷新当前页')
+        }
+        error.message = '连接服务器失败'
+    }
+
+    Message.error(error.message)
+    /***** 处理结束 *****/
+    //如果不需要错误处理，以上的处理过程都可省略
+    return Promise.resolve(error.response)
+})
+//4.导入文件
+export default service
+```
+* router的路由守卫
+```js
+// 为路由对象，添加beforeEach导航守卫
+router.beforeEach((to, from, next) => {
+    //如果用户访问的登录页，直接放行
+    if (to.path === '/login') return next()
+    // 从sessionStorage中获取到保存的token值
+    const tokenStr = window.localStorage.getItem('token')
+    let unexpired = window.localStorage.getItem("unexpired");
+    // 有token，而且未过期
+    if(to.path!=='/main'){
+        return next('/login')
+    }
+    if (tokenStr && unexpired) return next()
+    if(tokenStr==null){
+        Message.error('请先登录')
+    }else {
+        if (!unexpired){
+            Message.error('身份认证过期')
+        }
+    }
+    next('/login')
+})
+```
+## 上线
+* ngnix.conf
+```conf
+# 使用 "user" 指令来指定运行 Nginx 的用户，通常为 "nginx" 用户。
+user nginx;
+
+# "worker_processes" 指定了 Nginx 启动的工作进程数，"auto" 表示根据可用 CPU 核心数自动设置。
+worker_processes auto;
+
+# 定义错误日志的位置和文件名。
+error_log /var/log/nginx/error.log;
+
+# 配置事件模块，用于控制 Nginx 的事件处理。
+events {
+    # "worker_connections" 指定每个工作进程的最大并发连接数。
+    worker_connections 1024;
+}
+
+# 配置 HTTP 模块，包含所有关于 HTTP 服务的设置。
+http {
+    # 包含 MIME 类型的配置文件，用于定义文件类型和对应的 MIME 类型。
+    include /etc/nginx/mime.types;
+    
+    # 默认 MIME 类型，当无法确定文件类型时会使用该类型。
+    default_type application/octet-stream;
+
+    # 定义一个 HTTP 服务器块。
+    server {
+        # 监听端口为 80，用于处理传入的 HTTP 请求。
+        listen 80;
+        
+        # 定义服务器名，通常是域名，可以是多个域名，用空格分隔。
+        server_name ledger-code.buzz;
+
+        # 配置请求的处理逻辑。
+        location / {
+            # 指定根目录，用于查找请求的资源文件。
+            root /usr/share/nginx/html;
+            
+            # 默认索引文件名。
+            index index.html;
+
+            # 允许前端路由正常工作。
+            try_files $uri $uri/ /index.html;
+        }
+        location /api/ {
+            # 重写路径,去掉/api
+            rewrite ^/api(/.*)$ $1 break;
+            proxy_pass http://ledger-code.buzz:9999; # 后端服务器地址
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+         }  
+    }
+}
+
+```
+ * Dockerfile
+```Dockerfile
+# 使用一个基础的 Java 镜像
+FROM openjdk:11-jre-slim
+
+# 设置工作目录
+WORKDIR /app
+
+# 复制 JAR 文件到容器中
+COPY english-1.0.jar /app/english-1.0.jar
+COPY application.yml /app/application.yml
+
+# 安装所需的字体包!!!!!(验证码里面配置的字体需要下载不然就会报错!!!!)
+RUN apt-get update && apt-get install -y \
+    fonts-wqy-zenhei \
+    fonts-wqy-microhei \
+    fonts-arphic-ukai \
+    fonts-arphic-uming
+
+# 暴露端口
+EXPOSE 9999
+
+# 定义启动命令
+CMD ["java", "-jar", "english-1.0.jar"]
+```
+* docker-compose
+```yml
+version: '3'
+services:
+  # 启动nginx的镜像 docker run -p 80:80 \
+  # -v ./nginx.conf:/etc/nginx/nginx.conf \
+  # -v ./dist:/usr/share/nginx/html \
+  # --name compose-nginx-1 nginx
+  nginx:
+    # 镜像名称
+    image: nginx
+    # 端口映射
+    ports:
+      - "80:80"
+    # 挂载卷
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro  # 映射 NGINX 配置文件(ro表示容器内部只读,保证数据的安全性)
+      - ./dist:/usr/share/nginx/html:ro # 映射 静态资源类dist 
+    container_name: nginx
+
+  # 打包java的镜像配置 docker build -t java-app .
+  # 运行镜像的配置 docker run -p 9999:9999 \ 
+  # -v ./application.yml:/app/application.yml \
+  # --name compose-java-app-1 english
+  java-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "9999:9999"
+    volumes:
+      - ./application.yml:/app/application.yml:ro  # 映射 Java 应用程序配置文件
+    container_name: english
+```
+* 启动
+```sh
+docker-compose up -d 
+```
 
 
 
