@@ -854,7 +854,7 @@ http {
 }
 
 ```
- * Dockerfile
+* Dockerfile
 ```Dockerfile
 # 使用一个基础的 Java 镜像
 FROM openjdk:11-jre-slim
