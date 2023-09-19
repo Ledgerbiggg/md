@@ -107,31 +107,30 @@ docker run --name kibana -e ELASTICSEARCH_HOSTS=http://106.54.9.19:9200 -p 5601:
 
 ```sh
 docker pull mysql
-
 ```
 
 * 运行
 
 ```sh
-docker run -d --restart=always --name mysql -p 3306:3306 -e TZ=Asia/Shanghai -e MYSQL_ROOT_PASSWORD=123456 mysql --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
+docker run -d --restart=always --name mysql -p 13306:3306 -e TZ=Asia/Shanghai -e MYSQL_ROOT_PASSWORD=123456 mysql --character-set-server=utf8mb4 --collation-server=utf8mb4_general_ci
 
 ```
 
 * 创建文件夹
 
 ```sh
-mkdir -p /root/data/mysql/var/lib/
-mkdir -p /root/data/mysql/etc/
-mkdir -p /root/data/mysql/var/log/
+mkdir -p /data/mysql/var/lib/
+mkdir -p /data/mysql/etc/
+mkdir -p /data/mysql/var/log/
 
 ```
 
 * 复制卷（一个一个来）
 
 ```sh
-docker cp mysql:/var/lib/mysql /root/data/mysql/var/lib/
-docker cp mysql:/etc/mysql /root/data/mysql/etc/
-docker cp mysql:/var/log  /root/data/mysql/var/log/
+docker cp mysql:/var/lib/mysql /data/mysql/var/lib/
+docker cp mysql:/etc/mysql /data/mysql/etc/
+docker cp mysql:/var/log  /data/mysql/var/log/
 
 ```
 
@@ -145,12 +144,12 @@ docker rm -f mysql
 * 运行容器
 
 ```sh
-docker run  -p 3306:3306 \
+docker run  -p 13306:3306 \
 -e MYSQL_ROOT_PASSWORD=123456 \
 -e TZ=Asia/Shanghai \
--v /root/data/mysql/data:/var/lib/mysql:rw  \
--v /root/data/mysql/log:/var/log/mysql:rw  \
--v /root/data/mysql/conf/my.cnf:/etc/mysql/my.cnf:rw  \
+-v /data/mysql/data:/var/lib/mysql:rw  \
+-v /data/mysql/log:/var/log/mysql:rw  \
+-v /data/mysql/conf/my.cnf:/etc/mysql/my.cnf:rw  \
 --name mysql \
 --restart=always \
 -d mysql
@@ -172,9 +171,8 @@ mysql -u root -p123456
 * 改密码
 
 ```sh
-alter user 'root'@'%' identified with mysql_native_password by 'root'
-flush privileges
-
+alter user 'root'@'%' identified with mysql_native_password by 'root';
+flush privileges;
 ```
 
 * exit

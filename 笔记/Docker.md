@@ -137,6 +137,11 @@ docker exec -it <container_name> /bin/bash
 * touch Dockerfile
 
 ```sh
+# 使用一个基础的 Java 镜像
+FROM openjdk:11-jre-slim
+
+# 设置工作目录
+WORKDIR /app
 # 复制 JAR 文件到容器中 
 COPY app.jar /app/app.jar 
 # 复制 配置文件到容器中
