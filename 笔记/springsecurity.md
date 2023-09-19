@@ -542,7 +542,6 @@ public class SecurityUserDetailService implements UserDetailsService {
         }
         return new SecurityUser(sysUser);
     }
-    
 }
 ```
 
@@ -631,7 +630,7 @@ public class SecurityUserDetailServiceImpl implements UserDetailsService {
             throw new UsernameNotFoundException("用户名没有找到");
         }
         //根据用户id获取用户的权限
-        List<String> auths = sysMenuService.queryPermissionByUserId(sysUser.getUserId());
+        List<String> auths = sysMenuService.queryPermissionByUserId(sysUser.getUserId());   
         SecurityUser securityUser = new SecurityUser(sysUser);
         List<SimpleGrantedAuthority> collect = auths
                 .stream()
