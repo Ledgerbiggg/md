@@ -322,8 +322,8 @@ docker pull nginx
 ```
 2. 编写ngnix.config
 ```sh
-mkdir /data/nginx
-touch ngnix.conf
+mkdir -p /data/nginx
+touch nginx.conf
 ```
 * 内容
 ```conf
