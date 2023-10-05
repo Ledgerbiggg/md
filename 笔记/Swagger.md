@@ -8,13 +8,13 @@
         <dependency>
             <groupId>io.springfox</groupId>
             <artifactId>springfox-swagger2</artifactId>
-            <version>2.7.0</version>
+            <version>2.9.2</version>
         </dependency>
         <!-- Swagger第三方ui依赖 -->
         <dependency>
             <groupId>com.github.xiaoymin</groupId>
-            <artifactId>swagger-bootstrap-ui</artifactId>
-            <version>1.9.6</version>
+            <artifactId>knife4j-spring-boot-starter</artifactId>
+            <version>4.0.0</version>
         </dependency>
 ```
 
@@ -47,7 +47,24 @@ public class Swagger2Config {
     }
 }
 ```
+3. 配置路径
+```java
+@Configuration
+public class WebMvcConfig implements WebMvcConfigurer {
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        registry.addResourceHandler("/**").addResourceLocations("classpath:/static/");
+        registry.addResourceHandler("swagger-ui.html")
+                .addResourceLocations("classpath:/META-INF/resources/");
+        registry.addResourceHandler("doc.html")
+                .addResourceLocations("classpath:/META-INF/resources/");
+        registry.addResourceHandler("/webjars/**")
+                .addResourceLocations("classpath:/META-INF/resources/webjars/");
+    }
+}
+```
 
+### 或者
 3. 配置springsecurity忽略的路径请求 （WebSecurityConfigurerAdapter的实现）
 
 ```java
@@ -69,7 +86,7 @@ public class Swagger2Config {
     }
 ```
 
-4. 访问http://localhost:8080/doc.html
+4. 访问http://localhost:9999/doc.html
 
 ![](https://ledger-image-bed-1318365547.cos.ap-shanghai.myqcloud.com//image-bed202307101712427.png)
 
