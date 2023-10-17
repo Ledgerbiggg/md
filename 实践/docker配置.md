@@ -256,6 +256,7 @@ docker exec -it rabbitmq bash
 rabbitmq-plugins enable rabbitmq_management
 ```
 ps:可以使用admin和admin来访问
+
 # nacos
 * 挂卷
 ```sh
@@ -263,7 +264,7 @@ mkdir -p /data/nacos/{logs,init.d}
 ```
 * 修改权限
 ```sh
-chmod -R /data/nacos/
+chmod 777 -R /data/nacos/
 ```
 * 配置文件
 ```sh

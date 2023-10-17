@@ -13,7 +13,7 @@ git add .
 ```
 4. 绑定远程分支
 ```sh
-git remote add origin https://github.com/Ledgerhhhh/springcloud_test.git
+git remote add origin https://github.com/Ledgerhhhh/AlgorithmNotes.git
 ```
 5. 重命名当前分支
 ```sh

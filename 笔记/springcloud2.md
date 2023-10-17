@@ -72,7 +72,7 @@ Spring Boot式的启动项目，为Spring Cloud提供开箱即用的依赖管理
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>2.7.15</version>
+        <version>2.3.2.RELEASE</version>
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
 
@@ -168,10 +168,8 @@ Spring Boot式的启动项目，为Spring Cloud提供开箱即用的依赖管理
 ```xml
     <properties>
         <java.version>11</java.version>
-        <!-- 控制spring-cloud版本的一致性 -->
-        <spring-cloud.version>2021.0.1</spring-cloud.version>
-        <!-- alibaba-cloud版本统一控制 -->
-        <alibaba-cloud.version>2.1.0.RELEASE</alibaba-cloud.version>
+        <spring-cloud.version>Hoxton.SR4</spring-cloud.version>
+        <alibaba-cloud.version>2.2.6.RELEASE</alibaba-cloud.version>
     </properties>
 ```
 * 依赖配置
@@ -327,7 +325,7 @@ public class TestProductApplication {
    * 服务消费者会有一个注册信息的缓存，避免每次都会向注册中心拉取消息
    * 消费者定时拉取nacos注册中心的注册信息
    * 当注册中心有信息变更或者服务健康状态变换，nacos会直接向服务消费者推送信息，确保消息的时效性
-  
+
 ## Nacos配置管理
 1. 引入依赖
 ```xml
