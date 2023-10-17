@@ -29,7 +29,7 @@ git branch --set-upstream-to=origin/main main
 ```
 8. 拉取
 ```sh
-git pull
+    git pull
 ```
 9. 推送
 ```sh
