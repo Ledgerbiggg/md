@@ -382,6 +382,27 @@ docker run -d -p 80:80 --name nginx \
 nginx
 ```
 
+# jenkins
+1. 拉区镜像
+```sh
+docker pull jenkins/jenkins:lts
+```
+2. 创建文件夹
+```sh
+mkdir -p /data/jenkins_home
+```
+3. 修改文件夹权限
+```sh
+chmod -R 777 /data/jenkins_home
+```
+4. 运行镜像
+```sh
+docker run -di  \
+--name=jenkins \
+-p 8080:8080 \
+-v /data/jenkins_home:/var/jenkins_home \
+jenkins/jenkins:lts
+```
 
 
 
